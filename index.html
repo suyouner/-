@@ -16,6 +16,7 @@
     --wx-green: #07c160;
     --wx-orange: #f79c4a;
     --wx-blue: #576b95;
+    --wx-grey-bubble: #e3e3e3;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; user-select: none; }
   
@@ -240,8 +241,20 @@
   
   .msg-red-packet { background: #fa9d3b !important; color: white !important; display: flex; align-items: center; width: 220px; }
   .msg-red-packet i { font-size: 24px; color: #f7dd4a; margin-right: 10px;}
-  .msg-transfer { background: var(--wx-orange) !important; color: white !important; display: flex; align-items: center; width: 220px; }
-  .msg-transfer i { font-size: 24px; border: 2px solid white; border-radius: 50%; padding: 5px; margin-right: 10px; }
+  
+  .msg-transfer { background: var(--wx-orange) !important; color: white !important; width: 220px; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .transfer-content { display: flex; align-items: center; padding: 10px 12px; }
+  .transfer-icon { font-size: 24px; margin-right: 12px; width: 36px; height: 36px; border: 1.5px solid white; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+  .transfer-details { display: flex; flex-direction: column; overflow: hidden; white-space: nowrap; }
+  .transfer-amount { font-size: 16px; font-weight: 500; }
+  .transfer-status { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+  .transfer-footer { background: #fcfcfc; font-size: 10px; color: #aaa; padding: 3px 12px; border-top: 0.5px solid rgba(0,0,0,0.05); }
+
+  .msg-transfer.accepted, .msg-transfer.returned { background: #fde4ce !important; }
+  .msg-transfer.accepted .transfer-icon, .msg-transfer.returned .transfer-icon { color: #999; border-color: #ccc; }
+  .msg-transfer.accepted .transfer-amount, .msg-transfer.returned .transfer-amount,
+  .msg-transfer.accepted .transfer-status, .msg-transfer.returned .transfer-status { color: #666 !important; }
+
   .msg-img { max-width: 100%; border-radius: 4px; display: block; }
   .msg-error { align-self: center; background: #ffebee; color: #d32f2f; font-size: 12px; padding: 5px 10px; border-radius: 4px; margin: 0 auto !important; }
   .sys-tip { text-align: center; font-size: 12px; color: #999; margin: 5px auto; width: 100%; background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 4px; display: inline-block; width: auto; }
@@ -304,6 +317,125 @@
   .select-item:last-child { border-bottom: none; }
   .select-avatar { width: 30px; height: 30px; border-radius: 4px; background-size: cover; margin-right: 10px; }
 
+  /* 密码输入弹窗 */
+  #modal-password-input {
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(0,0,0,0.3);
+  }
+  .password-modal-content {
+      background: #f2f2f7;
+      text-align: center;
+      padding-top: 20px;
+      width: 100%;
+      border-radius: 16px 16px 0 0;
+      animation: slideUp 0.3s ease-out;
+      position: relative;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .password-modal-content h3 {
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 20px;
+  }
+  .password-close-btn {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      font-size: 20px;
+      color: #666;
+      cursor: pointer;
+  }
+  .password-error-msg {
+      color: #ff5252;
+      font-size: 14px;
+      height: 20px;
+      margin-bottom: 5px;
+  }
+  .password-dots {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      margin: 0 auto 20px;
+      width: 246px; /* 41px * 6 */
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      overflow: hidden;
+  }
+  .password-dots div {
+      width: 41px;
+      height: 40px;
+      border-right: 1px solid #ccc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #fff;
+  }
+  .password-dots div:last-child { border-right: none; }
+  .password-dots div.filled::after {
+      content: '●';
+      font-size: 16px;
+  }
+  .password-dots.shake {
+      animation: shake 0.5s;
+  }
+  @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+  }
+
+  .numpad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background: #d1d5db;
+  }
+  .numpad button {
+      height: 55px;
+      border: none;
+      background: #fff;
+      font-size: 22px;
+      cursor: pointer;
+      border-right: 0.5px solid #d1d5db;
+      border-top: 0.5px solid #d1d5db;
+  }
+  .numpad button:active { background: #f0f0f0; }
+  .numpad button:nth-child(3n) { border-right: none; }
+  .numpad .numpad-empty { background: #d1d5db; }
+  .numpad button:nth-child(10) { background: #d1d5db; }
+  .numpad button:last-child { background: #d1d5db; }
+
+  /* --- 系统提示 Toast --- */
+  #system-toast {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -120%);
+    padding: 8px 16px;
+    border-radius: 16px;
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 1001;
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    max-width: 80%;
+    text-align: center;
+    white-space: nowrap;
+  }
+  #system-toast.show {
+    transform: translate(-50%, 50px);
+  }
+  #system-toast.success {
+    background: var(--wx-green);
+  }
+  #system-toast.error {
+    background: #ff5252;
+  }
+  #system-toast.info {
+    background: rgba(0,0,0,0.6);
+  }
+
 </style>
 </head>
 <body>
@@ -316,8 +448,11 @@
 <input type="file" id="backup-upload" accept=".json" style="display: none;">
 <input type="file" id="cover-upload" accept="image/*" style="display: none;">
 <input type="file" id="emoji-upload" accept="image/*" style="display: none;">
+<input type="file" id="chat-bg-upload" accept="image/*" style="display: none;">
+
 
 <div id="phone-shell">
+  <div id="system-toast"></div>
 
   <div id="msg-context-menu">
     <div onclick="menuAction('reply')">引用</div>
@@ -343,7 +478,7 @@
     <div class="home-content">
       <div class="profile-card">
         <div id="home-avatar-img" class="avatar-big" onclick="document.getElementById('avatar-upload').click()"></div>
-        <h2 id="home-user-name" class="editable-text" onclick="editHomeText('name')">许早早</h2>
+        <h2 id="home-user-name" class="editable-text" onclick="editHomeText('name')">用户姓名</h2>
         <p id="home-user-bio" class="editable-text" style="color:#666; font-size:12px;" onclick="editHomeText('bio')">> 天天开心 <</p>
       </div>
       <div class="icon-grid">
@@ -357,7 +492,7 @@
 
   <div id="screen-settings" class="screen">
     <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
-    <div class="nav-bar"><button class="nav-btn" onclick="goHome()">返回</button><span>设置</span><div></div></div>
+    <div class="nav-bar"><button class="nav-btn" onclick="goHome()"><i class="fas fa-chevron-left"></i></button><span>设置</span><div></div></div>
     <div class="form-list">
       <div class="form-group">
         <div class="form-item"><label class="form-label">API 地址</label><input type="text" id="api-url" class="form-input" value="https://api.openai.com/v1"></div>
@@ -384,7 +519,7 @@
 
   <div id="screen-themes" class="screen">
     <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
-    <div class="nav-bar"><button class="nav-btn" onclick="goHome()">返回</button><span>主题设置</span><div></div></div>
+    <div class="nav-bar"><button class="nav-btn" onclick="goHome()"><i class="fas fa-chevron-left"></i></button><span>主题设置</span><div></div></div>
     <div class="form-list">
       <div class="form-group">
         <div class="form-row-item">
@@ -395,7 +530,20 @@
           </label>
         </div>
       </div>
-      <p style="font-size:12px;color:#666;text-align:center;margin-top:10px;">开启后，虚拟手机将铺满整个浏览器窗口。</p>
+      <p style="font-size:12px;color:#666;text-align:center;margin-top:10px;margin-bottom:20px;">开启后，虚拟手机将铺满整个浏览器窗口。</p>
+
+      <div class="form-group">
+          <div class="form-row-item" style="padding-bottom:5px;">
+              <label style="font-weight:bold;">聊天背景</label>
+          </div>
+          <div style="text-align:center; padding: 10px 0;">
+              <img id="chat-bg-preview" style="width: 100px; height: 180px; border-radius: 8px; border: 1px solid #ddd; object-fit: cover; background-color: #f2f2f7;" alt="Chat background preview">
+          </div>
+          <div style="display:flex; gap:10px; padding: 10px 0;">
+              <button class="btn-secondary" style="flex:1;margin:0;" onclick="document.getElementById('chat-bg-upload').click()">上传背景</button>
+              <button class="btn-secondary" style="flex:1;margin:0; background:#aaa;" onclick="removeChatBackground()">移除背景</button>
+          </div>
+      </div>
     </div>
   </div>
 
@@ -486,7 +634,7 @@
     </div>
 
     <div class="chat-input-area" id="input-area">
-      <div class="icon-btn btn-hide-on-type" onclick="requestAIResponse()" title="手动接收 AI 回复"><i class="fas fa-satellite-dish"></i></div>
+      <div class="icon-btn btn-hide-on-type" onclick="requestAIResponse()" title="手动接收 AI 回复"><i class="fas fa-microphone"></i></div>
       <input type="text" id="msg-input" oninput="handleInput()">
       <div class="icon-btn btn-hide-on-type" onclick="toggleActionPanel('emoji')"><i class="far fa-smile"></i></div>
       <div class="icon-btn" id="btn-plus" onclick="toggleActionPanel('more')"><i class="fas fa-plus-circle"></i></div>
@@ -509,9 +657,9 @@
   <div id="screen-worldbooks" class="screen">
     <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
     <div class="nav-bar">
-      <button class="nav-btn" onclick="goHome()">桌面</button>
-      <span>世界书</span>
-      <button class="nav-btn" onclick="showAddWBModal()">+</button>
+      <div style="width:50px; text-align:left;"><button class="nav-btn" onclick="goHome()"><i class="fas fa-chevron-left"></i></button></div>
+      <span style="flex:1; text-align:center;">世界书</span>
+      <div style="width:50px; text-align:right;"><button class="nav-btn" onclick="showAddWBModal()">+</button></div>
     </div>
     <div class="wb-group-bar" id="wb-group-bar"></div>
     <div class="form-list" id="wb-list-container"></div>
@@ -697,7 +845,14 @@
     <div class="modal-content">
       <h3>管理</h3>
       <div class="form-item"><label class="form-label">选择角色</label><select id="moment-char-select" class="form-select" style="border:1px solid #ddd;padding:8px;"></select></div>
-      <div class="form-row-item" style="margin-top:15px;"><label>自动后台生成</label><input type="checkbox" id="moment-auto-toggle" onchange="toggleAutoMoment(this.checked)"></div>
+      <div class="form-row-item" style="margin-top:15px;">
+        <label>自动后台生成</label>
+        <label class="switch"><input type="checkbox" id="moment-auto-toggle" onchange="toggleAutoMoment(this.checked)"><span class="slider"></span></label>
+      </div>
+      <div id="auto-moment-char-list-container" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+        <label style="font-size:14px; color:#666;">选择要开启的角色:</label>
+        <div id="auto-moment-char-list" class="selection-list" style="max-height:150px;"></div>
+      </div>
       <button class="btn-primary" onclick="generateAIMoment()">✨ 生成一条</button>
       <button class="btn-secondary" onclick="closeModal('modal-char-moment-settings')">关闭</button>
     </div>
@@ -723,7 +878,7 @@
           <p style="font-size:24px; font-weight:bold;">¥<span id="modal-wallet-balance">0.00</span></p>
       </div>
       <button class="btn-primary" onclick="openTopUpModal()">充值</button>
-      <button class="btn-secondary" onclick="openPasswordModal()">设置/修改密码</button>
+      <button class="btn-secondary" onclick="openPasswordSetModal()">设置/修改密码</button>
       <button class="btn-secondary" style="margin-top:10px; background:#ccc;" onclick="closeModal('modal-wallet')">关闭</button>
     </div>
   </div>
@@ -739,23 +894,67 @@
       </div>
   </div>
 
-  <div id="modal-wallet-password" class="modal">
-      <div class="modal-content">
-          <h3>设置支付密码</h3>
-          <div id="pwd-step-1">
-              <input type="text" id="new-wallet-pwd" class="form-input" placeholder="输入6位数字密码" maxlength="6" style="border-bottom:1px solid #eee; margin:15px 0;">
-              <div style="display:flex;gap:10px;">
-                  <button class="btn-secondary" onclick="closeModal('modal-wallet-password')">取消</button>
-                  <button class="btn-primary" onclick="confirmSetPassword()">确定</button>
-              </div>
-          </div>
-      </div>
+  <div id="modal-transfer" class="modal">
+    <div class="modal-content">
+        <h3>向 <span id="transfer-recipient-name"></span> 转账</h3>
+        <input type="number" id="transfer-amount" class="form-input" placeholder="输入转账金额" style="text-align:center; font-size: 24px; padding: 20px 0; border:none; border-bottom: 1px solid #eee; margin: 15px 0;">
+        <div style="text-align: center; color: #999; font-size: 14px; margin-bottom: 15px;">钱包余额: ¥<span id="transfer-wallet-balance">0.00</span></div>
+        <div style="display:flex;gap:10px;">
+            <button class="btn-secondary" onclick="closeModal('modal-transfer')">取消</button>
+            <button class="btn-primary" onclick="confirmTransfer()">确认转账</button>
+        </div>
+    </div>
+  </div>
+
+  <div id="modal-password-input" class="modal">
+    <div class="password-modal-content">
+        <i class="fas fa-times password-close-btn" onclick="closePasswordModal()"></i>
+        <h3 id="password-modal-title">请输入支付密码</h3>
+        <p id="password-error-msg" class="password-error-msg"></p>
+        <div class="password-dots" id="password-dots-container">
+            <div></div><div></div><div></div><div></div><div></div><div></div>
+        </div>
+        <div class="numpad">
+            <button onclick="handleNumpadClick(1)">1</button>
+            <button onclick="handleNumpadClick(2)">2</button>
+            <button onclick="handleNumpadClick(3)">3</button>
+            <button onclick="handleNumpadClick(4)">4</button>
+            <button onclick="handleNumpadClick(5)">5</button>
+            <button onclick="handleNumpadClick(6)">6</button>
+            <button onclick="handleNumpadClick(7)">7</button>
+            <button onclick="handleNumpadClick(8)">8</button>
+            <button onclick="handleNumpadClick(9)">9</button>
+            <button class="numpad-empty"></button>
+            <button onclick="handleNumpadClick(0)">0</button>
+            <button onclick="handleNumpadBackspace()"><i class="fas fa-backspace"></i></button>
+        </div>
+    </div>
   </div>
 
 </div>
 
 <script>
   let currentGroupView = '全部';
+  let toastTimer = null;
+
+  function showToast(message, type = 'info', duration = 2000) {
+      const toast = document.getElementById('system-toast');
+      if (!toast) return;
+
+      clearTimeout(toastTimer);
+
+      toast.textContent = message;
+      toast.className = ''; // Reset classes
+      toast.classList.add(type);
+      
+      void toast.offsetWidth; 
+
+      toast.classList.add('show');
+
+      toastTimer = setTimeout(() => {
+          toast.classList.remove('show');
+      }, duration);
+  }
   
   function getCleanBaseUrl(url) { if(!url) return ""; let c = url.trim(); if(c.endsWith('/')) c=c.slice(0,-1); if(c.endsWith('/chat/completions')) c=c.replace('/chat/completions',''); else if(c.endsWith('/models')) c=c.replace('/models',''); return c; }
 
@@ -773,20 +972,41 @@
   let moments = JSON.parse(localStorage.getItem('moments')) || [{ id: 'm_1', authorId: 1, content: "今天天气真好☀️", image: "", likes: [], comments: [], timestamp: Date.now(), visibleTo: 'all' }];
   let autoMomentEnabled = localStorage.getItem('autoMomentEnabled') === 'true';
   let isFullscreen = localStorage.getItem('isFullscreen') === 'true'; 
+  let chatBackgroundImage = localStorage.getItem('chatBackgroundImage') || null;
   
   let currentChatId = null; let autoGenInterval = null; let tempMomentImg = ""; let selectedMsgIndex = null; let longPressTimer = null;
   let isMultiSelectMode = false; let selectedMessageIndices = [];
   let replyingToMsg = null;
+  let currentPasswordAttempt = '';
+
+  let passwordModalContext = {
+      mode: 'verify', // 'verify' or 'set'
+      step: 1,
+      tempPassword: '',
+      onsuccess: null,
+  };
 
   const phoneShell = document.getElementById('phone-shell');
   if (isFullscreen) phoneShell.classList.add('fullscreen-mode');
 
-  function startBackgroundMomentGenerator() { if(autoGenInterval) clearInterval(autoGenInterval); if(!autoMomentEnabled) return; autoGenInterval = setInterval(() => { if(contacts.length === 0) return; if(Math.random() < 0.15) { const char = contacts[Math.floor(Math.random()*contacts.length)]; if(!char.isGroup) generateAIMomentInternal(char); } }, 60000); }
+  function startBackgroundMomentGenerator() { 
+      if(autoGenInterval) clearInterval(autoGenInterval); 
+      if(!autoMomentEnabled) return; 
+      const eligibleChars = contacts.filter(c => !c.isGroup && c.autoMoment);
+      if(eligibleChars.length === 0) return;
+
+      autoGenInterval = setInterval(() => { 
+          if(Math.random() < 0.15) { 
+              const char = eligibleChars[Math.floor(Math.random() * eligibleChars.length)]; 
+              generateAIMomentInternal(char); 
+          } 
+      }, 60000); 
+  }
   startBackgroundMomentGenerator();
 
   const homeAvatarImg = document.getElementById('home-avatar-img');
   let savedUserAvatar = localStorage.getItem('userAvatar') || 'https://api.dicebear.com/7.x/miniavs/svg?seed=Girl';
-  let savedUserName = localStorage.getItem('userName') || '许早早';
+  let savedUserName = localStorage.getItem('userName') || '用户姓名';
   let savedUserBio = localStorage.getItem('userBio') || '> 天天开心 <';
   let savedUserPersona = localStorage.getItem('userPersona') || '我是一个活泼开朗、喜欢开玩笑的女孩。';
   let savedUserCover = localStorage.getItem('userCover') || 'https://picsum.photos/400/300';
@@ -819,16 +1039,21 @@
   document.getElementById('img-send-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{sendImageMessageOnly(ev.target.result);};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
   document.getElementById('emoji-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{customEmojis.push(ev.target.result);localStorage.setItem('customEmojis',JSON.stringify(customEmojis));renderEmojiPanel();};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
   document.getElementById('moment-img-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{tempMomentImg=ev.target.result;document.getElementById('moment-img-status').innerText="已选择";};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
-  document.getElementById('backup-upload').addEventListener('change', (e)=>{const f=e.target.files[0];if(!f||!confirm("导入数据将覆盖当前所有内容，确定吗?"))return;const r=new FileReader();r.onload=(ev)=>{try{const d=JSON.parse(ev.target.result);Object.keys(d).forEach(k=>{localStorage.setItem(k,d[k])});alert("导入成功，页面将刷新。");location.reload();}catch(e){alert("导入失败，文件格式错误。");}};r.readAsText(f);});
+  document.getElementById('backup-upload').addEventListener('change', (e)=>{const f=e.target.files[0];if(!f||!confirm("导入数据将覆盖当前所有内容，确定吗?"))return;const r=new FileReader();r.onload=(ev)=>{try{const d=JSON.parse(ev.target.result);Object.keys(d).forEach(k=>{localStorage.setItem(k,d[k])});showToast('导入成功，即将刷新...', 'success');setTimeout(()=>location.reload(), 1500);}catch(e){showToast('导入失败，文件格式错误', 'error');}};r.readAsText(f);});
   document.getElementById('cover-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{savedUserCover=ev.target.result;localStorage.setItem('userCover',ev.target.result);updateMomentsHeader();};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
+  document.getElementById('chat-bg-upload').addEventListener('change', (e)=>{ const r=new FileReader(); r.onload=(ev)=>{ chatBackgroundImage = ev.target.result; localStorage.setItem('chatBackgroundImage', chatBackgroundImage); applyChatBackground(); updateChatBgPreview(); }; if(e.target.files[0])r.readAsDataURL(e.target.files[0]); });
 
-  function editHomeText(type) { let k=type==='name'?'userName':(type==='bio'?'userBio':'userLoc'); let el=document.getElementById('home-user-'+type); let v=prompt("修改:",el.innerText); if(v){el.innerText=v;localStorage.setItem(k,v);if(type==='name'){savedUserName=v;updateMeTab();updateMomentsHeader();} else if(type==='bio'){savedUserBio=v;}} }
+  function editHomeText(type) { let k = type === 'name' ? 'userName' : 'userBio'; let el = document.getElementById('home-user-' + type); if (el.style.display === 'none') return; let currentVal = el.innerText; let input = document.createElement('input'); input.type = 'text'; input.value = currentVal; input.className = el.className; input.style.fontSize = window.getComputedStyle(el).fontSize; input.style.fontWeight = window.getComputedStyle(el).fontWeight; input.style.color = window.getComputedStyle(el).color; input.style.textAlign = 'center'; input.style.width = '100%'; input.style.border = 'none'; input.style.background = 'rgba(255,255,255,0.5)'; input.style.borderRadius = '5px'; input.style.padding = '5px'; el.style.display = 'none'; el.parentNode.insertBefore(input, el.nextSibling); input.focus(); const save = () => { let newVal = input.value.trim(); if (newVal) { el.innerText = newVal; localStorage.setItem(k, newVal); if (type === 'name') { savedUserName = newVal; updateMeTab(); updateMomentsHeader(); } else if (type === 'bio') { savedUserBio = newVal; } } el.style.display = ''; input.parentNode.removeChild(input); }; input.addEventListener('blur', save); input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { input.blur(); } else if (e.key === 'Escape') { el.style.display = ''; input.parentNode.removeChild(input); } }); }
   function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
   function goHome() { hideMomentCommentBar(); showScreen('screen-home'); }
   function closeModal(id) { document.getElementById(id).style.display='none'; }
 
-  function openThemes() { document.getElementById('theme-fullscreen-toggle').checked = isFullscreen; showScreen('screen-themes'); }
+  function openThemes() { document.getElementById('theme-fullscreen-toggle').checked = isFullscreen; updateChatBgPreview(); showScreen('screen-themes'); }
   function toggleFullscreen(checked) { isFullscreen = checked; localStorage.setItem('isFullscreen', checked); if(checked) phoneShell.classList.add('fullscreen-mode'); else phoneShell.classList.remove('fullscreen-mode'); }
+
+  function applyChatBackground() { const chatMessages = document.getElementById('chat-messages'); if (chatBackgroundImage) { chatMessages.style.backgroundImage = `url('${chatBackgroundImage}')`; chatMessages.style.backgroundSize = 'cover'; chatMessages.style.backgroundPosition = 'center'; } else { chatMessages.style.backgroundImage = 'none'; chatMessages.style.backgroundColor = '#f2f2f7'; } }
+  function removeChatBackground() { if (confirm("确定要移除聊天背景吗?")) { chatBackgroundImage = null; localStorage.removeItem('chatBackgroundImage'); applyChatBackground(); updateChatBgPreview(); } }
+  function updateChatBgPreview() { const preview = document.getElementById('chat-bg-preview'); if (preview) { preview.src = chatBackgroundImage || ''; } }
 
   function openWorldBooks() { if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; } renderGroupBar(); renderWBList(); showScreen('screen-worldbooks'); }
   function renderGroupBar() { const bar = document.getElementById('wb-group-bar'); bar.innerHTML = ''; let allPill = document.createElement('div'); allPill.className = `group-pill ${currentGroupView==='全部'?'active':''}`; allPill.innerText='全部'; allPill.onclick=()=>{ currentGroupView='全部'; openWorldBooks(); }; bar.appendChild(allPill); wbGroups.forEach(g => { let p = document.createElement('div'); p.className=`group-pill ${currentGroupView===g?'active':''}`; p.innerText=g; p.onclick=()=>{ currentGroupView=g; openWorldBooks(); }; p.ondblclick=()=>deleteGroup(g); bar.appendChild(p); }); let add = document.createElement('div'); add.className='group-add-btn'; add.innerText='+'; add.onclick=addNewGroup; bar.appendChild(add); }
@@ -837,7 +1062,7 @@
   function renderWBList() { const c = document.getElementById('wb-list-container'); c.innerHTML = ''; let list = currentGroupView==='全部' ? worldBooks : worldBooks.filter(b=>(b.group||'默认')===currentGroupView); list.forEach(wb => { let d = document.createElement('div'); d.className='wb-item'; d.innerHTML = `<div onclick="editWB('${wb.id}')" style="flex:1"><div class="wb-title">${wb.title} <span class="wb-tag">${wb.group||'默认'}</span></div><div class="wb-preview">${wb.content}</div></div><i class="fas fa-trash" style="color:#ff5252;padding:10px" onclick="deleteWB('${wb.id}')"></i>`; c.appendChild(d); }); if (list.length === 0) { c.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无世界书内容，点击右上角+号添加</div>'; } }
   function showAddWBModal() { document.getElementById('wb-modal-title').innerText="新建世界书"; document.getElementById('wb-id').value=''; document.getElementById('wb-title').value=''; document.getElementById('wb-content').value=''; const s = document.getElementById('wb-group-select'); s.innerHTML=''; wbGroups.forEach(g=>{ let o=document.createElement('option'); o.value=g; o.innerText=g; if(currentGroupView===g) o.selected=true; s.appendChild(o); }); document.getElementById('modal-wb').style.display='flex'; }
   function editWB(id) { const wb = worldBooks.find(b=>b.id===id); if(!wb) return; document.getElementById('wb-modal-title').innerText="编辑世界书"; document.getElementById('wb-id').value=wb.id; document.getElementById('wb-title').value=wb.title; document.getElementById('wb-content').value=wb.content; const s = document.getElementById('wb-group-select'); s.innerHTML=''; wbGroups.forEach(g=>{ let o=document.createElement('option'); o.value=g; o.innerText=g; if((wb.group||'默认')===g) o.selected=true; s.appendChild(o); }); document.getElementById('modal-wb').style.display='flex'; }
-  function saveWB() { const id=document.getElementById('wb-id').value; const title=document.getElementById('wb-title').value; const content=document.getElementById('wb-content').value; const group=document.getElementById('wb-group-select').value; if(!title) return alert('标题为空'); if(id) { const i=worldBooks.findIndex(b=>b.id===id); if(i>-1) worldBooks[i]={id,title,content,group}; } else { worldBooks.push({ id:'wb_'+Date.now(), title, content, group }); } localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); closeModal('modal-wb'); openWorldBooks(); }
+  function saveWB() { const id=document.getElementById('wb-id').value; const title=document.getElementById('wb-title').value; const content=document.getElementById('wb-content').value; const group=document.getElementById('wb-group-select').value; if(!title) { showToast('标题不能为空', 'info'); return; } if(id) { const i=worldBooks.findIndex(b=>b.id===id); if(i>-1) worldBooks[i]={id,title,content,group}; } else { worldBooks.push({ id:'wb_'+Date.now(), title, content, group }); } localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); closeModal('modal-wb'); openWorldBooks(); }
   function deleteWB(id) { if(confirm('删除?')) { worldBooks=worldBooks.filter(b=>b.id!==id); localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); openWorldBooks(); } }
 
   function openWeChat() { hideMomentCommentBar(); updateMeTab(); updateMomentsHeader(); switchWxTab('chat', document.querySelector('.wechat-footer .wx-tab:first-child')); renderContacts(); showScreen('screen-wechat'); }
@@ -901,7 +1126,7 @@
     savedUserPersona = document.getElementById('user-persona-input').value;
     localStorage.setItem('userPersona', savedUserPersona);
     closeModal('modal-user-persona');
-    alert('人设已保存');
+    showToast('人设已保存', 'success');
   }
   function updateMomentsHeader() { document.getElementById('moments-avatar').style.backgroundImage=`url('${savedUserAvatar}')`; document.getElementById('moments-name').innerText=savedUserName; document.getElementById('moments-header').style.backgroundImage=`url('${savedUserCover}')`; }
 
@@ -918,10 +1143,7 @@
         const char = contacts.find(c => c.id === currentChatId);
 
         let items = [{ icon: 'fas fa-image', color:'#333', name:'相册', action: "document.getElementById('img-send-upload').click()" }];
-        if (char && char.isGroup) {
-            items.push({ icon: 'fas fa-gifts', color: '#fa9d3b', name: '群红包', action: "sendRedPacket()" });
-        }
-
+        
         if(char && !char.isGroup) {
             items.push({ icon: 'fas fa-exchange-alt', color: '#fa9d3b', name: '转账', action: 'sendTransfer()' });
             items.push({ icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" });
@@ -961,69 +1183,68 @@
 
       const char = contacts.find(c => c.id === currentChatId); 
       if (char) { 
-          char.history.push({ role: "user", content: text, isImage: false, timestamp: Date.now(), quote: quoteData }); 
+          char.history.push({ id: 'msg_' + Date.now(), role: "user", content: text, isImage: false, timestamp: Date.now(), quote: quoteData }); 
           localStorage.setItem('contacts', JSON.stringify(contacts)); 
           checkMemoryAutoSummary(char); 
       } 
   }
   
-  function sendImageMessageOnly(src) { appendMessageUI(src, true, true); document.getElementById('action-panel').classList.remove('show'); const char = contacts.find(c => c.id === currentChatId); if (char) { char.history.push({ role: "user", content: src, isImage: true, timestamp: Date.now() }); localStorage.setItem('contacts', JSON.stringify(contacts)); } }
-  
-  function sendRedPacket() { 
-      const text = prompt("红包祝福语:", "恭喜发财，大吉大利"); 
-      if(!text) return; 
-      const content = `[REDPACKET]${text}`; 
-      appendMessageUI(content, true); 
-      document.getElementById('action-panel').classList.remove('show'); 
-      const char = contacts.find(c => c.id === currentChatId); 
-      if (char) { 
-          char.history.push({ role: "user", content: content, isImage: false, timestamp: Date.now() }); 
-          localStorage.setItem('contacts', JSON.stringify(contacts)); 
-      } 
-  }
+  function sendImageMessageOnly(src) { appendMessageUI(src, true, true); document.getElementById('action-panel').classList.remove('show'); const char = contacts.find(c => c.id === currentChatId); if (char) { char.history.push({ id: 'msg_' + Date.now(), role: "user", content: src, isImage: true, timestamp: Date.now() }); localStorage.setItem('contacts', JSON.stringify(contacts)); } }
 
   function sendTransfer() {
-    const amountStr = prompt("输入转账金额:", "520");
-    if (!amountStr) {
-        document.getElementById('action-panel').classList.remove('show');
-        return;
-    }
+    const char = contacts.find(c => c.id === currentChatId);
+    if (!char) return;
+    document.getElementById('transfer-recipient-name').innerText = char.name;
+    document.getElementById('transfer-amount').value = '';
+    document.getElementById('transfer-wallet-balance').innerText = walletBalance.toFixed(2);
+    document.getElementById('modal-transfer').style.display = 'flex';
+    document.getElementById('action-panel').classList.remove('show');
+  }
+
+  function confirmTransfer() {
+    const amountStr = document.getElementById('transfer-amount').value;
+    if (!amountStr) return;
 
     const amount = parseFloat(amountStr);
     if (isNaN(amount) || amount <= 0) {
-        alert("请输入有效的金额");
+        showToast("请输入有效的金额", "error");
         return;
     }
 
     if (amount > walletBalance) {
-        alert(`余额不足！当前余额: ¥${walletBalance.toFixed(2)}`);
+        showToast(`余额不足！`, 'error');
+        return;
+    }
+    
+    if (!walletPassword) {
+        showToast("请先设置钱包密码", 'info');
+        closeModal('modal-transfer');
         return;
     }
 
-    if (walletPassword) {
-        const inputPwd = prompt("为保障安全，请输入6位支付密码:");
-        if (inputPwd !== walletPassword) {
-            alert("密码错误！支付失败。");
-            return;
-        }
-    }
-
-    walletBalance -= amount;
-    localStorage.setItem('walletBalance', walletBalance.toString());
-    updateMeTab();
-
-    const content = `[TRANSFER]${amount.toFixed(2)}`;
-    appendMessageUI(content, true);
-    document.getElementById('action-panel').classList.remove('show');
-    
-    const char = contacts.find(c => c.id === currentChatId);
-    if (char) {
-        char.history.push({ role: "user", content: content, isImage: false, timestamp: Date.now() });
-        localStorage.setItem('contacts', JSON.stringify(contacts));
-        requestAIResponse(); 
-    }
+    closeModal('modal-transfer');
+    showPasswordModal('verify', () => executeTransfer(amount));
   }
   
+  function acceptTransfer(msgId) {
+      const char = contacts.find(c => c.id === currentChatId);
+      if (!char) return;
+      const msg = char.history.find(m => m.id === msgId);
+      if (!msg || msg.transferStatus !== 'pending') return;
+
+      const amount = parseFloat(msg.content.replace('[TRANSFER]', ''));
+      if (isNaN(amount)) return;
+
+      walletBalance += amount;
+      localStorage.setItem('walletBalance', walletBalance.toString());
+      updateMeTab();
+
+      msg.transferStatus = 'accepted';
+      char.history.push({ id: 'msg_' + Date.now(), role: 'system', content: `你已收款 ¥${amount.toFixed(2)}` });
+      localStorage.setItem('contacts', JSON.stringify(contacts));
+      openChat(currentChatId);
+  }
+
   function showContextMenu(e, index) { 
     e.preventDefault(); 
     if(isMultiSelectMode) return; 
@@ -1076,13 +1297,17 @@
 
     if (action === 'delete') { char.history.splice(selectedMsgIndex, 1); } 
     else if (action === 'recall') { const isSelf = msg.role === 'user'; const name = isSelf ? "你" : (msg.roleName || char.name); char.history[selectedMsgIndex] = { role: 'system', content: `"${name}" 撤回了一条消息` }; } 
-    else if (action === 'edit') { if (msg.role === 'system' || msg.isImage) return alert("不可编辑"); const newText = prompt("编辑:", msg.content); if (newText) msg.content = newText; }
+    else if (action === 'edit') { if (msg.role === 'system' || msg.isImage) { showToast("该消息不可编辑", "info"); return; } const newText = prompt("编辑:", msg.content); if (newText) msg.content = newText; }
     else if (action === 'multi-select') { enterMultiSelectMode(selectedMsgIndex); return; }
     localStorage.setItem('contacts', JSON.stringify(contacts)); openChat(currentChatId); 
   }
 
   function startReply(name, content) {
-      if(content.startsWith('data:image')) content = "[图片]";
+      if(content.startsWith('data:image')) {
+          content = "[图片]";
+      } else if (content.startsWith('[TRANSFER]')) {
+          content = "[微信转账]";
+      }
       replyingToMsg = { name, content };
       document.getElementById('quote-bar').style.display = 'flex';
       document.getElementById('quote-content-preview').innerText = `${name}: ${content}`;
@@ -1132,7 +1357,7 @@
             } else { 
                 const isSelf = msg.role === 'user'; 
                 const isImg = msg.isImage || (msg.content && msg.content.startsWith('data:image')); 
-                const el = createMessageElement(msg.content, isSelf, isImg, index, msg.roleName, msg.quote); 
+                const el = createMessageElement(msg, isSelf, isImg, index); 
                 c.appendChild(el); 
             } 
         }); 
@@ -1140,13 +1365,14 @@
     showScreen('screen-chat'); handleInput(); setTimeout(() => { c.scrollTop = c.scrollHeight; }, 100); 
   }
 
-  function createMessageElement(content, isSelf, isImage, index, senderName, quoteData) { 
+  function createMessageElement(msg, isSelf, isImage, index) { 
     const char = contacts.find(c => c.id === currentChatId); if (!char) return document.createElement('div'); 
+    const { content, roleName, quote, transferStatus, id: msgId } = msg;
     const hideMode = char.hideAvatar || 'none'; 
   
     let charAvatarUrl = char.avatar;
-    if (char.isGroup && !isSelf && senderName) {
-      const member = contacts.find(m => m.name === senderName || m.realname === senderName);
+    if (char.isGroup && !isSelf && roleName) {
+      const member = contacts.find(m => m.name === roleName || m.realname === roleName);
       if(member) charAvatarUrl = member.avatar;
     }
 
@@ -1165,18 +1391,51 @@
     let bubbleHtml = '';
     let quoteHtml = '';
 
-    if (quoteData) {
-        quoteHtml = `<div class="msg-quote">${quoteData.name}: ${quoteData.content}</div>`;
+    if (quote) {
+        quoteHtml = `<div class="msg-quote">${quote.name}: ${quote.content}</div>`;
     }
-
+    
     if (isImage) { bubbleHtml = `<div class="message">${quoteHtml}<img src="${content}" class="msg-img" style="background:transparent;"></div>`; } 
     else if (content.startsWith('[REDPACKET]')) { const text = content.replace('[REDPACKET]', ''); bubbleHtml = `<div class="message msg-red-packet"><i class="fas fa-gift"></i> <div><div>${text}</div><div style="font-size:12px">微信红包</div></div></div>`; }
-    else if (content.startsWith('[TRANSFER]')) { const amount = content.replace('[TRANSFER]', ''); bubbleHtml = `<div class="message msg-transfer"><i class="fas fa-check"></i> <div><div>转账给朋友</div><div style="font-size:12px">¥${amount}</div></div></div>`; }
-    else { bubbleHtml = `<div class="message">${quoteHtml}${content}</div>`; } 
+    else if (content.startsWith('[TRANSFER]')) {
+        const amount = parseFloat(content.replace('[TRANSFER]', '')).toFixed(2);
+        let stateClass = '', statusText = '', onClick = '', iconClass = '';
+        
+        if (transferStatus === 'returned') stateClass = 'returned';
+        else if (transferStatus === 'accepted') stateClass = 'accepted';
+
+        if (isSelf) { // Sent by user
+            switch(transferStatus) {
+                case 'accepted': statusText = '对方已收款'; iconClass = 'fas fa-check'; break;
+                case 'returned': statusText = '已退还'; iconClass = 'fas fa-undo'; break;
+                default: statusText = '待对方确认收款'; iconClass = 'fas fa-exchange-alt'; break;
+            }
+        } else { // Received from AI
+            switch(transferStatus) {
+                case 'accepted': statusText = '已收款'; iconClass = 'fas fa-check'; break;
+                case 'returned': statusText = '已被退还'; iconClass = 'fas fa-undo'; break;
+                default: statusText = '转账给你'; onClick = `onclick="acceptTransfer('${msgId}')"`; iconClass = 'fas fa-exchange-alt'; break;
+            }
+        }
+        bubbleHtml = `
+            <div class="message msg-transfer ${stateClass}" ${onClick}>
+                <div class="transfer-content">
+                    <div class="transfer-icon"><i class="${iconClass}"></i></div>
+                    <div class="transfer-details">
+                        <div class="transfer-amount">¥${amount}</div>
+                        <div class="transfer-status">${statusText}</div>
+                    </div>
+                </div>
+                <div class="transfer-footer">微信转账</div>
+            </div>
+        `;
+    } else { 
+      bubbleHtml = `<div class="message">${quoteHtml}${content}</div>`; 
+    } 
     
-    if(char.isGroup && !isSelf && senderName) {
+    if(char.isGroup && !isSelf && roleName) {
         avatarHtml = `<div style="display:flex;flex-direction:column;align-items:flex-start;">${avatarHtml}</div>`;
-        bubbleHtml = `<div><div class="msg-sender-name">${senderName}</div>${bubbleHtml}</div>`;
+        bubbleHtml = `<div><div class="msg-sender-name">${roleName}</div>${bubbleHtml}</div>`;
     }
 
     row.innerHTML = isSelf ? (bubbleHtml + avatarHtml) : (avatarHtml + bubbleHtml); 
@@ -1190,12 +1449,23 @@
     return row; 
   }
 
-  function appendMessageUI(content, isSelf, isImage=false, debugInfo=null, senderName=null, quoteData=null) { 
+
+  function appendMessageUI(contentOrMsg, isSelf, isImage=false, debugInfo=null) { 
       const c = document.getElementById('chat-messages'); if (!c) return; 
-      if (debugInfo) { const div = document.createElement('div'); div.className = 'message msg-error'; div.innerHTML = `⚠️ ${content}<div class="msg-debug">${debugInfo}</div>`; c.appendChild(div); c.scrollTop = c.scrollHeight; return; } 
+      if (debugInfo) { const div = document.createElement('div'); div.className = 'message msg-error'; div.innerHTML = `⚠️ ${contentOrMsg}<div class="msg-debug">${debugInfo}</div>`; c.appendChild(div); c.scrollTop = c.scrollHeight; return; } 
       
       const char = contacts.find(c => c.id === currentChatId); if (!char) return; const index = char.history ? char.history.length : 0; 
-      const el = createMessageElement(content, isSelf, isImage, index, senderName, quoteData); c.appendChild(el); c.scrollTop = c.scrollHeight; 
+      
+      let msgObject;
+      if (typeof contentOrMsg === 'string') {
+        msgObject = { content: contentOrMsg, roleName: null, quote: null, id: 'temp_' + Date.now() };
+      } else {
+        msgObject = contentOrMsg;
+      }
+      
+      const el = createMessageElement(msgObject, isSelf, isImage, index); 
+      c.appendChild(el); 
+      c.scrollTop = c.scrollHeight; 
   }
 
   async function fetchRealWeather(city) {
@@ -1259,7 +1529,7 @@
                  const data = await res.json();
                  const newSummary = data.choices[0].message.content;
                  char.memory.summary = newSummary;
-                 char.history.push({ role: "system", content: "✨ 记忆已自动归档" });
+                 char.history.push({ id: 'msg_' + Date.now(), role: "system", content: "✨ 记忆已自动归档" });
                  localStorage.setItem('contacts', JSON.stringify(contacts));
                  if(currentChatId === char.id) openChat(char.id); 
              }
@@ -1332,12 +1602,12 @@ Now, based on the following chat history, generate the next response(s).`;
             charMoments.forEach((m, i) => { systemPrompt += `${i+1}. "${m.content}" (ID: ${m.id})\n`; });
         }
         
-        systemPrompt += `\n\n### Instructions:\n1. Reply naturally and in character. \n2. You can send multiple separate messages (bubbles) to simulate real chatting speed. Use '|||' to separate them. Example: "Haha"|||"That is funny"\n3. **Quoting**: You can quote the user's message if specific context is needed. To quote, start your message with \`[QUOTE: quoted_text]\`. Example: \`[QUOTE: I like cats] Me too!\`.\n4. Other commands: [CMD:DELETE_MOMENT:{moment_id_or_keyword}], [CMD:CHANGE_AVATAR].`;
+        systemPrompt += `\n\n### Instructions:\n1. Reply naturally and in character. \n2. You can send multiple separate messages (bubbles) to simulate real chatting speed. Use '|||' to separate them. Example: "Haha"|||"That is funny"\n3. **Quoting**: You can quote the user's message if specific context is needed. To quote, start your message with \`[QUOTE: quoted_text]\`. Example: \`[QUOTE: I like cats] Me too!\`.\n4. **Handling Transfers**: When you receive a transfer from the user (indicated by a message ID), you should decide whether to accept or return it. You MUST use one of the following commands. You can also provide a conversational reply in the same turn separated by '|||'. Example: \`[CMD:ACCEPT_TRANSFER:msg_12345]|||Thanks babe!\`\n5. Other commands: [CMD:DELETE_MOMENT:{moment_id_or_keyword}], [CMD:CHANGE_AVATAR], [CMD:SEND_TRANSFER:{amount}].`;
     }
     
     const recentHistory = char.history ? char.history.slice(-12).map(m => {
         if(m.isImage) return { role: "user", content: `[${savedUserName} sent an Image]` };
-        if(m.content && m.content.startsWith('[TRANSFER]')) return { role: "user", content: `[${savedUserName} transferred money: ${m.content.replace('[TRANSFER]','')}]` };
+        if(m.content && m.content.startsWith('[TRANSFER]')) { return { role: "user", content: `[${savedUserName} sent a transfer of ${m.content.replace('[TRANSFER]','')} yuan. Message ID: ${m.id}]` }; }
         if(m.content && m.content.startsWith('[REDPACKET]')) return { role: "user", content: `[${savedUserName} sent a Red Packet: ${m.content.replace('[REDPACKET]','')}]` };
         
         if (m.role === 'user') {
@@ -1422,9 +1692,9 @@ Now, based on the following chat history, generate the next response(s).`;
       }
       
       if(content) {
-          appendMessageUI(content, false, false, null, senderName, quoteData);
-          if (!char.history) char.history = [];
-          char.history.push({ role: "assistant", content: content, isImage: false, roleName: senderName, timestamp: Date.now(), quote: quoteData });
+          const newMsg = { id: 'msg_' + Date.now(), role: "assistant", content: content, isImage: false, roleName: senderName, timestamp: Date.now(), quote: quoteData };
+          char.history.push(newMsg);
+          appendMessageUI(newMsg, false, false, null);
       }
 
       setTimeout(() => {
@@ -1433,27 +1703,89 @@ Now, based on the following chat history, generate the next response(s).`;
   }
 
   async function handleAICommands(reply, char) {
-    if(reply.includes('[CMD:CHANGE_AVATAR]')) {
-        let lastUserImg = null;
-        if (char.history) {
-          for(let i=char.history.length-1; i>=0; i--) { 
-            if(char.history[i].role === 'user' && char.history[i].isImage) { lastUserImg = char.history[i].content; break; } 
+      let needsRerender = false;
+
+      // Handle multiple commands in one response
+      let processedReply = reply;
+      let commandFound = true;
+      while(commandFound) {
+          commandFound = false;
+
+          // --- CHANGE_AVATAR ---
+          if(processedReply.includes('[CMD:CHANGE_AVATAR]')) {
+              let lastUserImg = null;
+              if (char.history) {
+                for(let i=char.history.length-1; i>=0; i--) { 
+                  if(char.history[i].role === 'user' && char.history[i].isImage) { lastUserImg = char.history[i].content; break; } 
+                }
+              }
+              if(lastUserImg) { char.avatar = lastUserImg; needsRerender = true; }
+              processedReply = processedReply.replace(/\[CMD:CHANGE_AVATAR\]/g, '').trim();
+              commandFound = true;
           }
-        }
-        if(lastUserImg) { char.avatar = lastUserImg; localStorage.setItem('contacts', JSON.stringify(contacts)); openChat(char.id); }
-        reply = reply.replace(/\[CMD:CHANGE_AVATAR\]/g, '').trim();
-    }
-    const delMatch = reply.match(/\[CMD:DELETE_MOMENT:(.*?)\]/);
-    if (delMatch) {
-        const keywordOrId = delMatch[1].trim();
-        const targetMomentIndex = moments.findIndex(m => m.authorId == char.id && (m.id === keywordOrId || m.content.includes(keywordOrId)));
-        if (targetMomentIndex !== -1) {
-            moments.splice(targetMomentIndex, 1);
-            saveMoments();
-        }
-        reply = reply.replace(delMatch[0], '').trim(); 
-    }
-    return reply;
+
+          // --- DELETE_MOMENT ---
+          const delMatch = processedReply.match(/\[CMD:DELETE_MOMENT:(.*?)\]/);
+          if (delMatch) {
+              const keywordOrId = delMatch[1].trim();
+              const targetMomentIndex = moments.findIndex(m => m.authorId == char.id && (m.id === keywordOrId || m.content.includes(keywordOrId)));
+              if (targetMomentIndex !== -1) { moments.splice(targetMomentIndex, 1); saveMoments(); }
+              processedReply = processedReply.replace(delMatch[0], '').trim(); 
+              commandFound = true;
+          }
+          
+          // --- ACCEPT_TRANSFER ---
+          const acceptMatch = processedReply.match(/\[CMD:ACCEPT_TRANSFER:(.*?)\]/);
+          if (acceptMatch) {
+              const msgId = acceptMatch[1].trim();
+              const msg = char.history.find(m => m.id === msgId);
+              if(msg && msg.transferStatus === 'pending') { 
+                  msg.transferStatus = 'accepted';
+                  char.history.push({ id: 'msg_' + Date.now() + Math.random(), role: 'assistant', content: msg.content, transferStatus: 'accepted', timestamp: Date.now() });
+                  needsRerender = true; 
+              }
+              processedReply = processedReply.replace(acceptMatch[0], '').trim();
+              commandFound = true;
+          }
+
+          // --- RETURN_TRANSFER ---
+          const returnMatch = processedReply.match(/\[CMD:RETURN_TRANSFER:(.*?)\]/);
+          if (returnMatch) {
+              const msgId = returnMatch[1].trim();
+              const msg = char.history.find(m => m.id === msgId);
+              if(msg && msg.transferStatus === 'pending') { 
+                  msg.transferStatus = 'returned'; 
+                  const amount = parseFloat(msg.content.replace('[TRANSFER]',''));
+                  if(!isNaN(amount)) { walletBalance += amount; localStorage.setItem('walletBalance', walletBalance.toString()); updateMeTab();}
+                  char.history.push({ id: 'msg_' + Date.now() + Math.random(), role: 'assistant', content: msg.content, transferStatus: 'returned', timestamp: Date.now() });
+                  needsRerender = true; 
+              }
+              processedReply = processedReply.replace(returnMatch[0], '').trim();
+              commandFound = true;
+          }
+
+          // --- SEND_TRANSFER ---
+          const sendMatch = processedReply.match(/\[CMD:SEND_TRANSFER:(.*?)\]/);
+          if(sendMatch) {
+              const amount = parseFloat(sendMatch[1].trim());
+              if(!isNaN(amount)) {
+                  char.history.push({
+                      id: 'msg_' + Date.now() + Math.random(), role: "assistant", 
+                      content: `[TRANSFER]${amount.toFixed(2)}`, 
+                      isImage: false, timestamp: Date.now(), transferStatus: 'pending'
+                  });
+                  needsRerender = true;
+              }
+              processedReply = processedReply.replace(sendMatch[0], '').trim();
+              commandFound = true;
+          }
+      }
+
+      if (needsRerender) {
+          localStorage.setItem('contacts', JSON.stringify(contacts));
+          openChat(char.id);
+      }
+      return processedReply;
   }
 
   function toggleMomentsMenu() { const menu = document.getElementById('moments-menu'); menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'; }
@@ -1482,7 +1814,7 @@ Now, based on the following chat history, generate the next response(s).`;
   
   function postUserMoment() {
     const txt = document.getElementById('moment-text').value; 
-    if(!txt && !tempMomentImg) return alert("写点什么吧");
+    if(!txt && !tempMomentImg) { showToast("写点什么吧", "info"); return; }
     const visibility = document.getElementById('moment-visibility').value;
     const newMoment = { id: 'm_'+Date.now(), authorId: 'user', content: txt, image: tempMomentImg, likes: [], comments: [], timestamp: Date.now(), visibleTo: visibility };
     moments.unshift(newMoment);
@@ -1534,7 +1866,7 @@ Now, based on the following chat history, generate the next response(s).`;
         let commentHtml = '';
         m.comments.forEach(com => { let cName = (com.authorId === 'user') ? savedUserName : (contacts.find(x=>x.id==com.authorId)?.name || "Unknown"); commentHtml += `<div class="m-comment-item"><span class="m-comment-user">${cName}</span>: ${com.content}</div>`; });
         let deleteBtn = (m.authorId === 'user') ? `<span class="m-del-btn" onclick="deleteMoment('${m.id}')">删除</span>` : '';
-        let imgHtml = m.image ? `<img src="${m.image}" class="m-img" onclick="alert('预览图片')">` : '';
+        let imgHtml = m.image ? `<img src="${m.image}" class="msg-img" onclick="alert('预览图片')">` : '';
         let visibilityIcon = "";
         
         if(m.authorId === 'user' && m.visibleTo !== 'all') { visibilityIcon = `<span style="font-size:12px;color:#999;margin-left:5px;"><i class="fas fa-user-friends"></i> ${m.visibleTo}</span>`; }
@@ -1557,8 +1889,47 @@ Now, based on the following chat history, generate the next response(s).`;
       document.getElementById('moment-comment-input').focus();
   }
   
-  function showCharMomentsSettings() { toggleMomentsMenu(); const sel = document.getElementById('moment-char-select'); sel.innerHTML = ''; contacts.filter(c=>!c.isGroup).forEach(c => { let o = document.createElement('option'); o.value = c.id; o.innerText = c.name; sel.appendChild(o); }); document.getElementById('moment-auto-toggle').checked = autoMomentEnabled; document.getElementById('modal-char-moment-settings').style.display = 'flex'; }
-  function toggleAutoMoment(checked) { autoMomentEnabled = checked; localStorage.setItem('autoMomentEnabled', checked); startBackgroundMomentGenerator(); }
+  function showCharMomentsSettings() { 
+      toggleMomentsMenu(); 
+      const sel = document.getElementById('moment-char-select'); 
+      sel.innerHTML = ''; 
+      contacts.filter(c=>!c.isGroup).forEach(c => { 
+          let o = document.createElement('option'); o.value = c.id; o.innerText = c.name; sel.appendChild(o); 
+      }); 
+      
+      const autoToggle = document.getElementById('moment-auto-toggle');
+      autoToggle.checked = autoMomentEnabled;
+      
+      const listContainer = document.getElementById('auto-moment-char-list-container');
+      const list = document.getElementById('auto-moment-char-list');
+      list.innerHTML = '';
+      
+      contacts.filter(c => !c.isGroup).forEach(c => {
+          const div = document.createElement('div');
+          div.className = 'select-item';
+          div.innerHTML = `<input type="checkbox" id="auto-moment-char-${c.id}" onchange="updateAutoMomentSetting(${c.id}, this.checked)" style="margin-right:10px;" ${c.autoMoment ? 'checked' : ''}><label for="auto-moment-char-${c.id}">${c.name}</label>`;
+          list.appendChild(div);
+      });
+
+      listContainer.style.display = autoMomentEnabled ? 'block' : 'none';
+      document.getElementById('modal-char-moment-settings').style.display = 'flex'; 
+  }
+
+  function updateAutoMomentSetting(charId, isChecked) {
+      const char = contacts.find(c => c.id === charId);
+      if(char) {
+          char.autoMoment = isChecked;
+          localStorage.setItem('contacts', JSON.stringify(contacts));
+          startBackgroundMomentGenerator(); // Restart to apply changes
+      }
+  }
+
+  function toggleAutoMoment(checked) { 
+      autoMomentEnabled = checked; 
+      localStorage.setItem('autoMomentEnabled', checked); 
+      document.getElementById('auto-moment-char-list-container').style.display = checked ? 'block' : 'none';
+      startBackgroundMomentGenerator(); 
+  }
   
   function generateAIMoment() { const charId = document.getElementById('moment-char-select').value; const char = contacts.find(c => c.id == charId); if(char) generateAIMomentInternal(char); }
   
@@ -1634,8 +2005,8 @@ Now, based on the following chat history, generate the next response(s).`;
     try { 
       const res = await fetch(`${baseUrl}/models`, { method: 'GET', headers: { 'Authorization': `Bearer ${key}` } }); 
       if (!res.ok) { throw new Error(`HTTP error! status: ${res.status}`); }
-      const data = await res.json(); if(data && data.data) { const sel = document.getElementById('api-model'); sel.innerHTML = ''; data.data.sort((a,b)=>a.id.localeCompare(b.id)).forEach(m => { let o = document.createElement('option'); o.value = m.id; o.innerText = m.id; sel.appendChild(o); }); alert(`成功拉取 ${data.data.length} 个模型！`); } 
-    } catch(e) { console.error('拉取模型错误:', e); alert("拉取失败"); } 
+      const data = await res.json(); if(data && data.data) { const sel = document.getElementById('api-model'); sel.innerHTML = ''; data.data.sort((a,b)=>a.id.localeCompare(b.id)).forEach(m => { let o = document.createElement('option'); o.value = m.id; o.innerText = m.id; sel.appendChild(o); }); showToast(`成功拉取 ${data.data.length} 个模型！`, 'success'); } 
+    } catch(e) { console.error('拉取模型错误:', e); showToast("拉取失败", 'error'); } 
   }
   
   function saveSettings() { 
@@ -1647,10 +2018,10 @@ Now, based on the following chat history, generate the next response(s).`;
     localStorage.setItem('apiKey', config.key); 
     localStorage.setItem('apiModel', config.model); 
     localStorage.setItem('apiTemp', config.temp); 
-    alert('保存成功'); goHome(); 
+    showToast('保存成功', 'success'); goHome(); 
   }
   
-  function exportBackup() { const backupData = {}; const keys = ['userName', 'userAvatar', 'userCover', 'userBio', 'userPersona', 'walletBalance', 'walletPassword', 'apiUrl', 'apiKey', 'apiModel', 'apiTemp', 'contacts', 'worldBooks', 'wbGroups', 'customEmojis', 'moments', 'autoMomentEnabled']; keys.forEach(k => { backupData[k] = localStorage.getItem(k); }); const blob = new Blob([JSON.stringify(backupData)], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
+  function exportBackup() { const backupData = {}; const keys = ['userName', 'userAvatar', 'userCover', 'userBio', 'userPersona', 'walletBalance', 'walletPassword', 'apiUrl', 'apiKey', 'apiModel', 'apiTemp', 'contacts', 'worldBooks', 'wbGroups', 'customEmojis', 'moments', 'autoMomentEnabled', 'chatBackgroundImage']; keys.forEach(k => { backupData[k] = localStorage.getItem(k); }); const blob = new Blob([JSON.stringify(backupData)], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
   
   function renderContacts() { 
     const c = document.getElementById('contact-container'); if (!c) return; c.innerHTML = ''; 
@@ -1663,7 +2034,7 @@ Now, based on the following chat history, generate the next response(s).`;
         div.addEventListener('touchend', () => clearTimeout(longPressTimer));
 
         let lastMsg = user.prompt; 
-        if(user.history && user.history.length > 0) { const lastItem = user.history[user.history.length - 1]; if(lastItem.isImage) { lastMsg = "[图片]"; } else { lastMsg = lastItem.content; } } 
+        if(user.history && user.history.length > 0) { const lastItem = user.history[user.history.length - 1]; if(lastItem.isImage) { lastMsg = "[图片]"; } else if (lastItem.content && lastItem.content.startsWith('[TRANSFER]')) { lastMsg = '[转账]'; } else { lastMsg = lastItem.content; } } 
         let groupTag = user.isGroup ? `<span class="group-tag">群聊</span>` : '';
         div.innerHTML = `<div class="contact-avatar" style="background-image: url('${user.avatar}')"></div><div class="contact-info"><div class="contact-name">${groupTag}${user.name}</div><div class="contact-desc">${lastMsg}</div></div>`; c.appendChild(div); 
     }); 
@@ -1774,7 +2145,7 @@ Now, based on the following chat history, generate the next response(s).`;
   function createNewGroupChat() {
       let name = document.getElementById('new-group-name').value;
       const checks = document.querySelectorAll('.group-create-check:checked');
-      if(checks.length === 0) return alert("请至少选择一个成员");
+      if(checks.length === 0) { showToast("请至少选择一个成员", 'info'); return; }
       
       const memberIds = Array.from(checks).map(c => parseInt(c.value));
       
@@ -1861,7 +2232,7 @@ Now, based on the following chat history, generate the next response(s).`;
         }
     }
 
-    localStorage.setItem('contacts',JSON.stringify(contacts)); alert('已保存'); openChat(currentChatId);
+    localStorage.setItem('contacts',JSON.stringify(contacts)); showToast('已保存', 'success'); openChat(currentChatId);
   }
   
   function deleteCurrentChar() { if(confirm("删除?")) { contacts=contacts.filter(c=>c.id!==currentChatId); localStorage.setItem('contacts',JSON.stringify(contacts)); openWeChat(); } }
@@ -1961,32 +2332,141 @@ Now, based on the following chat history, generate the next response(s).`;
       document.getElementById('modal-wallet-topup').style.display = 'flex';
   }
 
-  function openPasswordModal() {
-      document.getElementById('new-wallet-pwd').value = '';
+  function openPasswordSetModal() {
       closeModal('modal-wallet');
-      document.getElementById('modal-wallet-password').style.display = 'flex';
+      showPasswordModal('set', () => {
+          showToast("密码设置成功", 'success');
+          showWalletModal();
+      });
   }
 
   function confirmTopUp() {
       const amt = parseFloat(document.getElementById('topup-amount').value);
-      if(isNaN(amt) || amt <= 0) return alert("请输入有效金额");
+      if(isNaN(amt) || amt <= 0) { showToast("请输入有效金额", 'error'); return; }
       walletBalance += amt;
       localStorage.setItem('walletBalance', walletBalance);
       updateMeTab();
-      alert("充值成功！");
+      showToast("充值成功！", 'success');
       closeModal('modal-wallet-topup');
       showWalletModal();
   }
 
-  function confirmSetPassword() {
-      const pwd = document.getElementById('new-wallet-pwd').value;
-      if(!/^\d{6}$/.test(pwd)) return alert("必须是6位数字");
-      walletPassword = pwd;
-      localStorage.setItem('walletPassword', pwd);
-      alert("密码设置成功");
-      closeModal('modal-wallet-password');
-      showWalletModal();
-  }
+    function showPasswordModal(mode, successCallback) {
+        passwordModalContext.mode = mode;
+        passwordModalContext.onsuccess = successCallback;
+        passwordModalContext.step = 1;
+        passwordModalContext.tempPassword = '';
+        currentPasswordAttempt = '';
+        
+        const titleEl = document.getElementById('password-modal-title');
+        titleEl.innerText = mode === 'set' ? '设置新密码' : '请输入支付密码';
+        
+        updatePasswordDots();
+        document.getElementById('password-error-msg').innerText = '';
+        document.getElementById('modal-password-input').style.display = 'flex';
+    }
+
+    function closePasswordModal() {
+        document.getElementById('modal-password-input').style.display = 'none';
+        passwordModalContext.onsuccess = null; // Clear callback
+    }
+
+    function handleNumpadClick(num) {
+        if (currentPasswordAttempt.length < 6) {
+            currentPasswordAttempt += num;
+            updatePasswordDots();
+        }
+        if (currentPasswordAttempt.length === 6) {
+            setTimeout(onPasswordComplete, 200);
+        }
+    }
+
+    function handleNumpadBackspace() {
+        currentPasswordAttempt = currentPasswordAttempt.slice(0, -1);
+        updatePasswordDots();
+    }
+
+    function updatePasswordDots() {
+        const dots = document.querySelectorAll('#password-dots-container div');
+        dots.forEach((dot, index) => {
+            if (index < currentPasswordAttempt.length) {
+                dot.classList.add('filled');
+            } else {
+                dot.classList.remove('filled');
+            }
+        });
+    }
+
+    function onPasswordComplete() {
+        const dotsContainer = document.getElementById('password-dots-container');
+        const errorMsg = document.getElementById('password-error-msg');
+        const titleEl = document.getElementById('password-modal-title');
+
+        if (passwordModalContext.mode === 'verify') {
+            if (currentPasswordAttempt === walletPassword) {
+                if (passwordModalContext.onsuccess) {
+                    passwordModalContext.onsuccess();
+                }
+                closePasswordModal();
+            } else {
+                errorMsg.innerText = '密码错误，请重试';
+                dotsContainer.classList.add('shake');
+                setTimeout(() => {
+                    dotsContainer.classList.remove('shake');
+                    currentPasswordAttempt = '';
+                    updatePasswordDots();
+                    errorMsg.innerText = '';
+                }, 1000);
+            }
+        } else if (passwordModalContext.mode === 'set') {
+            if (passwordModalContext.step === 1) {
+                passwordModalContext.tempPassword = currentPasswordAttempt;
+                passwordModalContext.step = 2;
+                titleEl.innerText = '请再次输入以确认';
+                currentPasswordAttempt = '';
+                updatePasswordDots();
+            } else if (passwordModalContext.step === 2) {
+                if (currentPasswordAttempt === passwordModalContext.tempPassword) {
+                    walletPassword = currentPasswordAttempt;
+                    localStorage.setItem('walletPassword', walletPassword);
+                    titleEl.innerText = '设置成功';
+                    setTimeout(() => {
+                        closePasswordModal();
+                        if (passwordModalContext.onsuccess) {
+                            passwordModalContext.onsuccess();
+                        }
+                    }, 1000);
+                } else {
+                    errorMsg.innerText = '两次输入不一致';
+                    dotsContainer.classList.add('shake');
+                    setTimeout(() => {
+                        dotsContainer.classList.remove('shake');
+                        passwordModalContext.step = 1;
+                        passwordModalContext.tempPassword = '';
+                        currentPasswordAttempt = '';
+                        updatePasswordDots();
+                        titleEl.innerText = '设置新密码';
+                        errorMsg.innerText = '';
+                    }, 1000);
+                }
+            }
+        }
+    }
+
+    function executeTransfer(amount) {
+        walletBalance -= amount;
+        localStorage.setItem('walletBalance', walletBalance.toString());
+        updateMeTab();
+
+        const content = `[TRANSFER]${amount.toFixed(2)}`;
+        const char = contacts.find(c => c.id === currentChatId);
+        if (char) {
+            const newMsg = { id: 'msg_' + Date.now() + Math.random(), role: "user", content: content, isImage: false, timestamp: Date.now(), transferStatus: 'pending' };
+            char.history.push(newMsg);
+            appendMessageUI(newMsg, true, false, null);
+            localStorage.setItem('contacts', JSON.stringify(contacts));
+        }
+    }
 
   function sendMomentComment() {
       const bar = document.getElementById('moment-comment-bar');
@@ -2023,6 +2503,7 @@ Now, based on the following chat history, generate the next response(s).`;
   document.getElementById('msg-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMessage(); });
   document.getElementById('moment-comment-send').onclick = sendMomentComment;
   document.getElementById('moment-comment-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMomentComment(); });
+  applyChatBackground();
   renderContacts(); renderAddressBook(); setTimeout(renderEmojiPanel, 100);
 </script>
 </body>
