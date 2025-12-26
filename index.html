@@ -208,8 +208,8 @@
   .m-actions-btn { background: #f2f2f2; padding: 2px 8px; border-radius: 4px; color: #576b95; cursor: pointer; }
   .m-comments-area { background: #f7f7f7; margin-top: 8px; border-radius: 4px; padding: 5px 10px; font-size: 13px; }
   .m-like-list { color: var(--wx-blue); border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px;}
-  .m-comment-item { margin-bottom: 3px; line-height: 1.4; }
-  .m-comment-user { color: var(--wx-blue); font-weight: 500; cursor: pointer; }
+  .m-comment-item { margin-bottom: 3px; line-height: 1.4; cursor: pointer; }
+  .m-comment-user { color: var(--wx-blue); font-weight: 500; }
   .m-del-btn { color: #576b95; font-size: 12px; cursor: pointer; margin-left: 10px; }
   #moments-menu { position: absolute; top: 50px; right: 10px; background: #333; border-radius: 6px; z-index: 999; display: none; width: 170px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
   #moments-menu div { color: white; padding: 12px 15px; border-bottom: 1px solid #444; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 12px; }
@@ -281,10 +281,10 @@
   .action-icon { width: 55px; height: 55px; background: #fff; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; margin-bottom: 5px; border: 1px solid #ddd; }
   
   /* 菜单 */
-  #msg-context-menu, #add-menu, #chat-list-context-menu { position: absolute; background: rgba(50,50,50,0.9); backdrop-filter: blur(5px); color: white; border-radius: 8px; display: none; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); overflow: hidden; }
-  #msg-context-menu div, #add-menu div, #chat-list-context-menu div { display: flex; align-items: center; gap: 10px; padding: 12px 15px; font-size: 14px; cursor: pointer; position: relative; }
-  #msg-context-menu div:not(:last-child), #add-menu div:not(:last-child), #chat-list-context-menu div:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.15); }
-  #msg-context-menu div:active, #add-menu div:active, #chat-list-context-menu div:active { background: rgba(255,255,255,0.1); }
+  #msg-context-menu, #add-menu, #chat-list-context-menu, #comment-context-menu { position: absolute; background: rgba(50,50,50,0.9); backdrop-filter: blur(5px); color: white; border-radius: 8px; display: none; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); overflow: hidden; }
+  #msg-context-menu div, #add-menu div, #chat-list-context-menu div, #comment-context-menu div { display: flex; align-items: center; gap: 10px; padding: 12px 15px; font-size: 14px; cursor: pointer; position: relative; }
+  #msg-context-menu div:not(:last-child), #add-menu div:not(:last-child), #chat-list-context-menu div:not(:last-child), #comment-context-menu div:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.15); }
+  #msg-context-menu div:active, #add-menu div:active, #chat-list-context-menu div:active, #comment-context-menu div:active { background: rgba(255,255,255,0.1); }
   #add-menu { top: 50px; right: 10px; width: 140px; }
   #chat-list-context-menu { padding: 0; }
 
@@ -466,6 +466,11 @@
   <div id="chat-list-context-menu">
     <div onclick="menuActionChatList('pin_top')">置顶</div>
     <div onclick="menuActionChatList('clear_history')">清空聊天记录</div>
+  </div>
+
+  <div id="comment-context-menu">
+    <div onclick="menuActionComment('retry')">重试</div>
+    <div onclick="menuActionComment('delete')">删除</div>
   </div>
 
   <div id="add-menu">
@@ -969,7 +974,7 @@
   let wbGroups = JSON.parse(localStorage.getItem('wbGroups')) || ['默认']; 
   let worldBooks = JSON.parse(localStorage.getItem('worldBooks')) || [{ id: 'wb_1', title: '简单恋爱日常', content: '现代都市背景...', group: '默认' }];
   let customEmojis = JSON.parse(localStorage.getItem('customEmojis')) || [];
-  let moments = JSON.parse(localStorage.getItem('moments')) || [{ id: 'm_1', authorId: 1, content: "今天天气真好☀️", image: "", likes: [], comments: [], timestamp: Date.now(), visibleTo: 'all' }];
+  let moments = JSON.parse(localStorage.getItem('moments')) || [];
   let autoMomentEnabled = localStorage.getItem('autoMomentEnabled') === 'true';
   let isFullscreen = localStorage.getItem('isFullscreen') === 'true'; 
   let chatBackgroundImage = localStorage.getItem('chatBackgroundImage') || null;
@@ -1023,12 +1028,14 @@
     if (mMenu.style.display === 'block' && !e.target.closest('#moments-menu') && !e.target.closest('#wx-cam-btn')) { mMenu.style.display = 'none'; }
     const cMenu = document.getElementById('msg-context-menu');
     if (cMenu.style.display === 'block' && !e.target.closest('#msg-context-menu')) { cMenu.style.display = 'none'; }
+    const coMenu = document.getElementById('comment-context-menu');
+    if (coMenu.style.display === 'block' && !e.target.closest('#comment-context-menu')) { coMenu.style.display = 'none'; }
     const addMenu = document.getElementById('add-menu');
     if (addMenu.style.display === 'block' && !e.target.closest('#add-menu') && !e.target.closest('#wx-add-btn')) { addMenu.style.display = 'none'; }
     const clMenu = document.getElementById('chat-list-context-menu');
     if (clMenu.style.display === 'block' && !e.target.closest('#chat-list-context-menu')) { clMenu.style.display = 'none'; }
     const commentBar = document.getElementById('moment-comment-bar');
-    if (commentBar.style.display === 'flex' && !e.target.closest('#moment-comment-bar') && !e.target.closest('.m-actions-btn')) {
+    if (commentBar.style.display === 'flex' && !e.target.closest('#moment-comment-bar') && !e.target.closest('.m-comment-item') && !e.target.closest('.m-actions-btn')) {
         hideMomentCommentBar();
     }
   });
@@ -1144,7 +1151,9 @@
 
         let items = [{ icon: 'fas fa-image', color:'#333', name:'相册', action: "document.getElementById('img-send-upload').click()" }];
         
-        if(char && !char.isGroup) {
+        if (char && char.isGroup) {
+            items.push({ icon: 'fas fa-envelope-open-text', color:'#f44336', name:'群发红包', action: 'sendGroupRedPacket()' });
+        } else if(char) {
             items.push({ icon: 'fas fa-exchange-alt', color: '#fa9d3b', name: '转账', action: 'sendTransfer()' });
             items.push({ icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" });
         }
@@ -1850,8 +1859,10 @@ Now, based on the following chat history, generate the next response(s).`;
         if (!res.ok) return;
         const data = await res.json();
         const content = data.choices[0].message.content.replace(/^["']|["']$/g, '');
-        moment.comments.push({ authorId: char.id, content: content });
+        const newComment = { authorId: char.id, content: content };
+        moment.comments.push(newComment);
         saveMoments(); renderMoments();
+        triggerAICommentChainReaction(moment, newComment);
     } catch(e) { console.error("AI Comment Error", e); }
   }
   
@@ -1863,10 +1874,30 @@ Now, based on the following chat history, generate the next response(s).`;
         if(m.authorId !== 'user') { const char = contacts.find(c => c.id == m.authorId); if(char) { authorName = char.realname || char.name; authorAvatar = char.avatar; } else { return; } } // 如果找不到角色，不渲染
         let likeHtml = '';
         if(m.likes.length > 0) { let names = m.likes.map(uid => { if(uid === 'user') return savedUserName; const c = contacts.find(ch => ch.id == uid); return c ? (c.realname||c.name) : "Unknown"; }).join(', '); likeHtml = `<div class="m-like-list"><i class="far fa-heart"></i> ${names}</div>`; }
+        
         let commentHtml = '';
-        m.comments.forEach(com => { let cName = (com.authorId === 'user') ? savedUserName : (contacts.find(x=>x.id==com.authorId)?.name || "Unknown"); commentHtml += `<div class="m-comment-item"><span class="m-comment-user">${cName}</span>: ${com.content}</div>`; });
+        const commentsContainer = document.createElement('div');
+        m.comments.forEach((com, index) => { 
+            let cName = (com.authorId === 'user') ? savedUserName : (contacts.find(x=>x.id==com.authorId)?.name || "Unknown"); 
+            let commentText = '';
+            if (com.replyTo) {
+                commentText = `<span class="m-comment-user">${cName}</span> 回复 <span class="m-comment-user">${com.replyTo}</span>: ${com.content}`;
+            } else {
+                commentText = `<span class="m-comment-user">${cName}</span>: ${com.content}`;
+            }
+            const comDiv = document.createElement('div');
+            comDiv.className = 'm-comment-item';
+            comDiv.innerHTML = commentText;
+            comDiv.onclick = () => replyToComment(m.id, com.authorId, cName);
+            comDiv.oncontextmenu = (e) => showCommentContextMenu(e, m.id, index);
+            comDiv.addEventListener('touchstart', (e) => { longPressTimer = setTimeout(() => showCommentContextMenu(e.touches[0], m.id, index), 500); });
+            comDiv.addEventListener('touchend', () => clearTimeout(longPressTimer));
+            commentsContainer.appendChild(comDiv);
+        });
+        commentHtml = commentsContainer.innerHTML;
+
         let deleteBtn = (m.authorId === 'user') ? `<span class="m-del-btn" onclick="deleteMoment('${m.id}')">删除</span>` : '';
-        let imgHtml = m.image ? `<img src="${m.image}" class="msg-img" onclick="alert('预览图片')">` : '';
+        let imgHtml = m.image ? `<img src="${m.image}" class="msg-img" onclick="showToast('预览图片')">` : '';
         let visibilityIcon = "";
         
         if(m.authorId === 'user' && m.visibleTo !== 'all') { visibilityIcon = `<span style="font-size:12px;color:#999;margin-left:5px;"><i class="fas fa-user-friends"></i> ${m.visibleTo}</span>`; }
@@ -1874,7 +1905,7 @@ Now, based on the following chat history, generate the next response(s).`;
         const timeStr = formatTimeAgo(m.timestamp);
 
         let div = document.createElement('div'); div.className = 'moment-item';
-        div.innerHTML = `<div class="m-avatar" style="background-image: url('${authorAvatar}')"></div><div class="m-content"><div class="m-name">${authorName}</div><div class="m-text">${m.content}</div>${imgHtml}<div class="m-meta"><span>${timeStr} ${deleteBtn}</span><div style="display:flex;gap:10px;"><span class="m-actions-btn" onclick="likeMoment('${m.id}')"><i class="far fa-heart"></i></span><span class="m-actions-btn" onclick="commentMoment('${m.id}')"><i class="far fa-comment"></i></span></div></div>${visibilityIcon}<div class="m-comments-area" style="display:${(likeHtml||commentHtml)?'block':'none'}">${likeHtml}${commentHtml}</div></div>`;
+        div.innerHTML = `<div class="m-avatar" style="background-image: url('${authorAvatar}')"></div><div class="m-content"><div class="m-name">${authorName}</div><div class="m-text">${m.content}</div>${imgHtml}<div class="m-meta"><span>${timeStr} ${deleteBtn}</span><div style="display:flex;gap:10px;"><span class="m-actions-btn" onclick="likeMoment('${m.id}')"><i class="far fa-heart"></i></span><span class="m-actions-btn" onclick="commentMoment('${m.id}')"><i class="far fa-comment"></i></span></div></div>${visibilityIcon}<div class="m-comments-area" style="display:${(likeHtml||commentHtml)?'block':'none'}">${likeHtml}${commentsContainer.innerHTML}</div></div>`;
         container.appendChild(div);
     });
   }
@@ -1882,6 +1913,7 @@ Now, based on the following chat history, generate the next response(s).`;
   function saveMoments() { localStorage.setItem('moments', JSON.stringify(moments)); }
   function deleteMoment(mid) { if(confirm("删除这条朋友圈？")) { moments = moments.filter(m => m.id !== mid); saveMoments(); renderMoments(); } }
   function likeMoment(mid) { const m = moments.find(x => x.id === mid); if(!m) return; if(m.likes.includes('user')) { m.likes = m.likes.filter(u => u !== 'user'); } else { m.likes.push('user'); } saveMoments(); renderMoments(); }
+  
   function commentMoment(mid) {
       const bar = document.getElementById('moment-comment-bar');
       bar.style.display = 'flex';
@@ -1967,25 +1999,36 @@ Now, based on the following chat history, generate the next response(s).`;
     if(potentialReactors.length === 0) return;
     
     const char = potentialReactors[Math.floor(Math.random()*potentialReactors.length)];
-    if(Math.random() > 0.5) { targetMoment.likes.push(char.id); saveMoments(); renderMoments(); } else {
+    if(Math.random() > 0.5) { 
+        targetMoment.likes.push(char.id); 
+        saveMoments(); 
+        renderMoments(); 
+    } else {
         const prompt = `System: You are ${char.name}. You see a post from ${author.name}: "${targetMoment.content}". Your persona is "${char.prompt}". Write a short, in-character comment.`;
         try {
             const res = await fetch(`${getCleanBaseUrl(config.url)}/chat/completions`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${config.key}` }, body: JSON.stringify({ model: config.model, messages:[{role:'user', content: prompt}], temperature: config.temp }) });
             if (!res.ok) { throw new Error(`HTTP error! status: ${res.status}`); }
             const data = await res.json();
-            targetMoment.comments.push({ authorId: char.id, content: data.choices[0].message.content }); saveMoments(); renderMoments();
+            const newComment = { authorId: char.id, content: data.choices[0].message.content };
+            targetMoment.comments.push(newComment); 
+            saveMoments(); 
+            renderMoments();
+            triggerAICommentChainReaction(targetMoment, newComment);
         } catch(e) { console.error('模拟互动错误:', e); }
     }
   }
   
   async function triggerAICommentReply(moment, userComment) {
     const char = contacts.find(c => c.id == moment.authorId); if (!char) return;
-    const prompt = `System: You are ${char.name}. Your post: "${moment.content}". ${savedUserName} commented: "${userComment}". Your persona is "${char.prompt}". Reply to their comment.`;
+    const prompt = `System: You are ${char.name}. Your post: "${moment.content}". ${savedUserName} commented: "${userComment.content}". Your persona is "${char.prompt}". Reply to their comment.`;
     try {
         const res = await fetch(`${getCleanBaseUrl(config.url)}/chat/completions`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${config.key}` }, body: JSON.stringify({ model: config.model, messages:[{role:'user', content: prompt}], temperature: config.temp }) });
         if (!res.ok) { throw new Error(`HTTP error! status: ${res.status}`); }
         const data = await res.json();
-        moment.comments.push({ authorId: char.id, content: `回复 ${savedUserName}: ${data.choices[0].message.content}` }); saveMoments(); renderMoments();
+        const replyContent = data.choices[0].message.content.replace(/^["']|["']$/g, '');
+        moment.comments.push({ authorId: char.id, content: replyContent, replyTo: savedUserName }); 
+        saveMoments(); 
+        renderMoments();
     } catch(e) { console.error('触发AI回复错误:', e); }
   }
 
@@ -2472,16 +2515,33 @@ Now, based on the following chat history, generate the next response(s).`;
       const bar = document.getElementById('moment-comment-bar');
       const mid = bar.dataset.momentId;
       const input = document.getElementById('moment-comment-input');
-      const txt = input.value.trim();
+      const replyToName = bar.dataset.replyToName;
+      const replyToId = bar.dataset.replyToId;
+
+      let txt = input.value.trim();
+      const replyPrefix = `回复 ${replyToName}: `;
+      if (replyToName && txt.startsWith(replyPrefix)) {
+          txt = txt.substring(replyPrefix.length);
+      }
 
       if (txt && mid) {
           const m = moments.find(x => x.id === mid);
           if (m) {
-              m.comments.push({ authorId: 'user', content: txt });
+              const newComment = { authorId: 'user', content: txt };
+              if (replyToName) {
+                  newComment.replyTo = replyToName;
+              }
+              m.comments.push(newComment);
               saveMoments();
               renderMoments();
-              if (m.authorId !== 'user') {
-                  triggerAICommentReply(m, txt);
+              
+              if (m.authorId !== 'user' && !replyToId) { // Replying to the post author
+                  triggerAICommentReply(m, newComment);
+              } else if (replyToId) { // Replying to another commenter
+                  const originalCommenter = contacts.find(c => c.id == replyToId);
+                  if (originalCommenter) {
+                     triggerAICommentChainReaction(m, newComment);
+                  }
               }
           }
       }
@@ -2490,14 +2550,142 @@ Now, based on the following chat history, generate the next response(s).`;
       hideMomentCommentBar();
   }
 
+  function showCommentContextMenu(e, momentId, commentIndex) {
+    e.preventDefault();
+    
+    // Hide other menus
+    document.querySelectorAll('#msg-context-menu, #chat-list-context-menu, #add-menu, #moments-menu').forEach(m => m.style.display = 'none');
+    
+    const menu = document.getElementById('comment-context-menu');
+    const moment = moments.find(m => m.id === momentId);
+    if (!moment || !moment.comments[commentIndex]) return;
+
+    const comment = moment.comments[commentIndex];
+    
+    // Show/hide retry option
+    const retryOption = menu.querySelector('div[onclick="menuActionComment(\'retry\')"]');
+    if (comment.authorId === 'user') {
+        retryOption.style.display = 'none';
+    } else {
+        retryOption.style.display = 'flex';
+    }
+
+    menu.dataset.momentId = momentId;
+    menu.dataset.commentIndex = commentIndex;
+
+    let x = e.pageX;
+    let y = e.pageY;
+    if (x + 150 > phoneShell.offsetWidth) x = phoneShell.offsetWidth - 160;
+    if (y + 150 > phoneShell.offsetHeight) y = phoneShell.offsetHeight - 160;
+    if (x < 10) x = 10;
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    menu.style.display = 'block';
+  }
+
+  function menuActionComment(action) {
+    const menu = document.getElementById('comment-context-menu');
+    const momentId = menu.dataset.momentId;
+    const commentIndex = parseInt(menu.dataset.commentIndex);
+    menu.style.display = 'none';
+
+    if (isNaN(commentIndex) || !momentId) return;
+
+    const moment = moments.find(m => m.id === momentId);
+    if (!moment) return;
+    
+    const originalComment = moment.comments[commentIndex];
+    if (!originalComment) return;
+
+    if (action === 'delete') {
+      moment.comments.splice(commentIndex, 1);
+      showToast('已删除', 'success');
+    } else if (action === 'retry') {
+      const char = contacts.find(c => c.id == originalComment.authorId);
+      if (char) {
+        moment.comments.splice(commentIndex, 1); // Delete first
+        // Generate a new comment on the post. This is a simplified retry.
+        generateAICommentForMoment(char, moment);
+        showToast('正在重新生成...', 'info');
+      }
+    }
+    
+    saveMoments();
+    renderMoments();
+  }
+
+  function replyToComment(momentId, authorId, authorName) {
+    if (authorId === 'user') return; // Can't reply to self
+    commentMoment(momentId); // Show bar
+    const input = document.getElementById('moment-comment-input');
+    input.value = `回复 ${authorName}: `;
+    input.focus();
+    
+    const bar = document.getElementById('moment-comment-bar');
+    bar.dataset.replyToName = authorName;
+    bar.dataset.replyToId = authorId;
+  }
+
   function hideMomentCommentBar() {
       const bar = document.getElementById('moment-comment-bar');
       if (bar.style.display !== 'none') {
           bar.style.display = 'none';
           document.getElementById('moment-comment-input').value = '';
           bar.dataset.momentId = '';
+          bar.dataset.replyToName = '';
+          bar.dataset.replyToId = '';
       }
   }
+
+  async function triggerAICommentChainReaction(moment, latestComment) {
+    if (Math.random() > 0.4) return; // 40% chance to trigger a reply chain
+
+    const commenterId = latestComment.authorId;
+    const commenter = contacts.find(c => c.id == commenterId);
+    if (!commenter && commenterId !== 'user') return; // Cannot find the commenter
+    
+    const commenterGroup = commenter ? commenter.group : 'all'; // User is in all groups implicitly for this purpose
+
+    const potentialRepliers = contacts.filter(c => {
+        if (c.isGroup) return false; // Not a person
+        if (c.id == moment.authorId) return false; // Not the original poster
+        if (c.id == commenterId) return false; // Not the person who just commented
+        
+        const canSeePost = moment.visibleTo === 'all' || (c.group && c.group === moment.visibleTo);
+        const inSameSocialCircle = (c.group && c.group === commenterGroup);
+
+        return canSeePost && inSameSocialCircle;
+    });
+
+    if (potentialRepliers.length === 0) return;
+
+    const replier = potentialRepliers[Math.floor(Math.random() * potentialRepliers.length)];
+    const personBeingRepliedToName = (commenterId === 'user') ? savedUserName : commenter.name;
+
+    await generateAIReplyToAIComment(replier, moment, latestComment, personBeingRepliedToName);
+  }
+
+  async function generateAIReplyToAIComment(replier, moment, commentToReplyTo, commenterName) {
+    const momentAuthor = contacts.find(c => c.id == moment.authorId) || { name: savedUserName };
+    const prompt = `System: You are ${replier.name} (${replier.prompt}). 
+    On a social media Moments feed, ${momentAuthor.name} posted: "${moment.content}".
+    Then, ${commenterName} commented: "${commentToReplyTo.content}".
+    Task: Write a short, in-character reply to ${commenterName}'s comment.`;
+
+    try {
+        const res = await fetch(`${getCleanBaseUrl(config.url)}/chat/completions`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${config.key}` }, body: JSON.stringify({ model: config.model, messages:[{role:'user', content: prompt}], temperature: config.temp }) });
+        if (!res.ok) return;
+        const data = await res.json();
+        const replyContent = data.choices[0].message.content.replace(/^["']|["']$/g, '');
+        
+        moment.comments.push({ authorId: replier.id, content: replyContent, replyTo: commenterName });
+        saveMoments();
+        renderMoments();
+    } catch (e) {
+        console.error("AI reply to comment error:", e);
+    }
+  }
+
 
   if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; }
   document.getElementById('msg-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMessage(); });
