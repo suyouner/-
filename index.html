@@ -2604,7 +2604,7 @@ Now, based on the following chat history, generate the next response(s).`;
       const char = contacts.find(c => c.id == originalComment.authorId);
       if (char) {
         moment.comments.splice(commentIndex, 1); // Delete first
-        // Generate a new comment on the post. This is a simplified retry.
+        // Generate a new comment on the post.
         generateAICommentForMoment(char, moment);
         showToast('正在重新生成...', 'info');
       }
@@ -2615,7 +2615,10 @@ Now, based on the following chat history, generate the next response(s).`;
   }
 
   function replyToComment(momentId, authorId, authorName) {
-    if (authorId === 'user') return; // Can't reply to self
+    if (authorId === 'user') {
+        commentMoment(momentId);
+        return;
+    }
     commentMoment(momentId); // Show bar
     const input = document.getElementById('moment-comment-input');
     input.value = `回复 ${authorName}: `;
