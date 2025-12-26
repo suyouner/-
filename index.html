@@ -443,6 +443,7 @@
 
 <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
 <input type="file" id="char-avatar-upload" accept="image/*" style="display: none;">
+<input type="file" id="new-char-avatar-upload" accept="image/*" style="display: none;">
 <input type="file" id="char-self-avatar-upload" accept="image/*" style="display: none;">
 <input type="file" id="img-send-upload" accept="image/*" style="display: none;">
 <input type="file" id="moment-img-upload" accept="image/*" style="display: none;">
@@ -747,10 +748,11 @@
   </div>
 
   <div id="modal-add-char" class="modal">
-    <div class="modal-content">
+    <div class="modal-content" style="text-align: center;">
       <h3>添加好友</h3>
-      <input type="text" id="new-name" placeholder="名字" style="width:100%;padding:10px;margin-bottom:10px;">
-      <textarea id="new-prompt" rows="3" placeholder="人设..." style="width:100%;padding:10px;"></textarea>
+      <div id="new-char-avatar-preview" style="width: 80px; height: 80px; border-radius: 10px; background-color: #eee; margin: 15px auto; background-size: cover; background-position: center; cursor: pointer; display: flex; justify-content: center; align-items: center; color: #999; font-size: 24px;" onclick="document.getElementById('new-char-avatar-upload').click()"><i class="fas fa-camera"></i></div>
+      <input type="text" id="new-name" placeholder="名字" style="width:100%;padding:10px;margin-bottom:10px;text-align:left;">
+      <textarea id="new-prompt" rows="3" placeholder="人设..." style="width:100%;padding:10px;text-align:left;"></textarea>
       <div style="display:flex;gap:10px;margin-top:10px;">
         <button class="btn-secondary" onclick="closeModal('modal-add-char')">取消</button>
         <button class="btn-primary" onclick="addNewChar()">添加</button>
@@ -876,7 +878,7 @@
         <label style="font-size:14px; color:#666;">选择要开启的角色:</label>
         <div id="auto-moment-char-list" class="selection-list" style="max-height:150px;"></div>
       </div>
-      <button class="btn-primary" onclick="generateAIMoment()">✨ 生成一条</button>
+      <button class="btn-primary" onclick="generateAIMoment()">生成一条</button>
       <button class="btn-secondary" onclick="closeModal('modal-char-moment-settings')">关闭</button>
     </div>
   </div>
@@ -1002,6 +1004,7 @@
   let replyingToMsg = null;
   let currentPasswordAttempt = '';
   let selectedChatListId = null;
+  let tempNewCharAvatar = '';
 
   let passwordModalContext = {
       mode: 'verify', // 'verify' or 'set'
@@ -1084,6 +1087,7 @@
 
   document.getElementById('avatar-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{homeAvatarImg.style.backgroundImage=`url('${ev.target.result}')`;localStorage.setItem('userAvatar',ev.target.result);savedUserAvatar=ev.target.result;updateMeTab();updateMomentsHeader();};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
   document.getElementById('char-avatar-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{document.getElementById('setting-avatar-preview').src=ev.target.result;};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
+  document.getElementById('new-char-avatar-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{const preview=document.getElementById('new-char-avatar-preview');preview.style.backgroundImage=`url('${ev.target.result}')`;preview.innerHTML='';tempNewCharAvatar=ev.target.result;};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
   document.getElementById('char-self-avatar-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{document.getElementById('setting-self-avatar-preview').src=ev.target.result;};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
   document.getElementById('img-send-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{sendImageMessageOnly(ev.target.result);};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
   document.getElementById('emoji-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{customEmojis.push(ev.target.result);localStorage.setItem('customEmojis',JSON.stringify(customEmojis));renderEmojiPanel();};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
@@ -1173,7 +1177,19 @@
   function openThemes() { document.getElementById('theme-fullscreen-toggle').checked = isFullscreen; updateChatBgPreview(); showScreen('screen-themes'); }
   function toggleFullscreen(checked) { isFullscreen = checked; localStorage.setItem('isFullscreen', checked); if(checked) phoneShell.classList.add('fullscreen-mode'); else phoneShell.classList.remove('fullscreen-mode'); }
 
-  function applyChatBackground() { const chatMessages = document.getElementById('chat-messages'); if (chatBackgroundImage) { chatMessages.style.backgroundImage = `url('${chatBackgroundImage}')`; chatMessages.style.backgroundSize = 'cover'; chatMessages.style.backgroundPosition = 'center'; } else { chatMessages.style.backgroundImage = 'none'; chatMessages.style.backgroundColor = '#f2f2f7'; } }
+  function applyChatBackground() {
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatBackgroundImage) {
+        chatMessages.style.backgroundImage = `url('${chatBackgroundImage}')`;
+        chatMessages.style.backgroundSize = 'cover';
+        chatMessages.style.backgroundPosition = 'center';
+        chatMessages.style.backgroundAttachment = 'fixed';
+    } else {
+        chatMessages.style.backgroundImage = 'none';
+        chatMessages.style.backgroundColor = '#f2f2f7';
+        chatMessages.style.backgroundAttachment = 'scroll';
+    }
+  }
   function removeChatBackground() { if (confirm("确定要移除聊天背景吗?")) { chatBackgroundImage = null; localStorage.removeItem('chatBackgroundImage'); applyChatBackground(); updateChatBgPreview(); } }
   function updateChatBgPreview() { const preview = document.getElementById('chat-bg-preview'); if (preview) { preview.src = chatBackgroundImage || ''; } }
 
@@ -2592,6 +2608,10 @@ Now, based on the following chat history, generate the next response(s).`;
   function showAddContactModal() {
     document.getElementById('new-name').value = '';
     document.getElementById('new-prompt').value = '';
+    tempNewCharAvatar = '';
+    const preview = document.getElementById('new-char-avatar-preview');
+    preview.style.backgroundImage = 'none';
+    preview.innerHTML = '<i class="fas fa-camera"></i>';
     document.getElementById('modal-add-char').style.display = 'flex';
     document.getElementById('add-menu').style.display = 'none';
   }
@@ -2607,7 +2627,7 @@ Now, based on the following chat history, generate the next response(s).`;
           id: Date.now(),
           name: name,
           realname: name,
-          avatar: `https://api.dicebear.com/7.x/miniavs/svg?seed=${name}`,
+          avatar: tempNewCharAvatar || `https://api.dicebear.com/7.x/miniavs/svg?seed=${encodeURIComponent(name)}`,
           prompt: prompt,
           worldBookId: null,
           hideAvatar: 'none',
@@ -2818,8 +2838,26 @@ Now, based on the following chat history, generate the next response(s).`;
     if (!checked) document.getElementById('weather-status').innerText = '';
   }
 
+  function renderAutoMomentCharList() {
+    const autoList = document.getElementById('auto-moment-char-list');
+    autoList.innerHTML = '';
+    contacts.filter(c => !c.isGroup).forEach(char => {
+        const checked = char.autoMoment ? 'checked' : '';
+        autoList.innerHTML += `
+            <div class="select-item">
+                <input type="checkbox" id="auto-moment-${char.id}" value="${char.id}" ${checked} onchange="updateAutoMomentChar(this.value, this.checked)">
+                <label for="auto-moment-${char.id}" style="display:flex;align-items:center;width:100%;">
+                    <div class="select-avatar" style="background-image:url('${char.avatar}')"></div>
+                    <span>${char.name}</span>
+                </label>
+            </div>`;
+    });
+  }
+
   function showCharMomentsSettings() {
-    toggleMomentsMenu();
+    if(document.getElementById('moments-menu').style.display === 'block') {
+      toggleMomentsMenu();
+    }
     
     const charSelect = document.getElementById('moment-char-select');
     charSelect.innerHTML = '';
@@ -2834,22 +2872,10 @@ Now, based on the following chat history, generate the next response(s).`;
     autoToggle.checked = autoMomentEnabled;
     
     const autoListContainer = document.getElementById('auto-moment-char-list-container');
-    const autoList = document.getElementById('auto-moment-char-list');
     autoListContainer.style.display = autoMomentEnabled ? 'block' : 'none';
     
     if (autoMomentEnabled) {
-        autoList.innerHTML = '';
-        contacts.filter(c => !c.isGroup).forEach(char => {
-            const checked = char.autoMoment ? 'checked' : '';
-            autoList.innerHTML += `
-                <div class="select-item">
-                    <input type="checkbox" id="auto-moment-${char.id}" value="${char.id}" ${checked} onchange="updateAutoMomentChar(this.value, this.checked)">
-                    <label for="auto-moment-${char.id}" style="display:flex;align-items:center;width:100%;">
-                        <div class="select-avatar" style="background-image:url('${char.avatar}')"></div>
-                        <span>${char.name}</span>
-                    </label>
-                </div>`;
-        });
+        renderAutoMomentCharList();
     }
 
     document.getElementById('modal-char-moment-settings').style.display = 'flex';
@@ -2858,9 +2884,10 @@ Now, based on the following chat history, generate the next response(s).`;
   function toggleAutoMoment(checked) {
     autoMomentEnabled = checked;
     localStorage.setItem('autoMomentEnabled', autoMomentEnabled);
-    document.getElementById('auto-moment-char-list-container').style.display = checked ? 'block' : 'none';
+    const autoListContainer = document.getElementById('auto-moment-char-list-container');
+    autoListContainer.style.display = checked ? 'block' : 'none';
     if(checked) {
-        showCharMomentsSettings();
+      renderAutoMomentCharList();
     }
     startBackgroundMomentGenerator();
   }
