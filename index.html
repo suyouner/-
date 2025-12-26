@@ -3587,6 +3587,36 @@ Now, based on the following chat history, generate the next response(s).`;
       }
   }
 
+  function exportBackup() {
+      const backupData = {};
+      const keysToBackup = [
+          'apiUrl', 'apiKey', 'apiModel', 'apiTemp', 'contacts', 'wbGroups',
+          'worldBooks', 'customEmojis', 'emojiGroups', 'moments', 'autoMomentEnabled',
+          'isFullscreen', 'chatBackgroundImage', 'desktopWallpaper', 'appIconStyle',
+          'customAppIcons', 'userAvatar', 'userName', 'userBio', 'userPersona',
+          'userCover', 'walletBalance', 'walletPassword', 'fontPresets', 'activeFontUrl',
+          'apiPresets'
+      ];
+
+      keysToBackup.forEach(key => {
+          const data = localStorage.getItem(key);
+          if (data !== null) {
+              backupData[key] = data;
+          }
+      });
+      
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `strawberry_backup_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('数据已导出', 'success');
+  }
 
   if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; }
   document.getElementById('msg-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMessage(); });
