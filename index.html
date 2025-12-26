@@ -203,10 +203,10 @@
   .addr-name { font-size: 16px; font-weight: 500; }
 
   /* 朋友圈样式 */
-  .moments-header { height: 260px; background-image: url('https://picsum.photos/400/300'); background-size: cover; background-position: center; position: relative; margin-bottom: 30px; cursor: pointer; }
-  .moments-header::after { content: '轻触更换封面'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.7); font-size: 12px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .moments-header { height: 260px; background-color: #fff; background-size: cover; background-position: center; position: relative; margin-bottom: 30px; cursor: pointer; }
+  .moments-header::after { content: '轻触更换封面'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0,0,0,0.4); font-size: 12px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
   .moments-header:active::after { opacity: 1; }
-  .moments-user-name { position: absolute; right: 100px; bottom: 10px; color: white; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); font-size: 18px; }
+  .moments-user-name { position: absolute; right: 100px; bottom: 10px; color: #111; font-weight: bold; font-size: 18px; }
   .moments-avatar { width: 70px; height: 70px; border-radius: 10px; position: absolute; right: 15px; bottom: -20px; border: 2px solid #fff; background-size: cover; background-position: center; cursor: pointer;}
   .moments-list { padding-bottom: 20px; }
   .moment-item { padding: 15px; border-bottom: 1px solid #f8f8f8; display: flex; gap: 10px; }
@@ -581,6 +581,16 @@
         </div>
 
       </div>
+       <div class="form-group">
+        <div class="form-item">
+             <label class="form-label">API 预设</label>
+             <div style="display:flex; gap: 8px;">
+                <select id="api-preset-select" class="form-select" style="border:1px solid #ddd; border-radius:6px; flex:1;" onchange="loadApiPreset()"></select>
+                <button class="btn-secondary" style="width:auto; padding:0 10px; font-size:12px; margin:0;" onclick="saveApiPreset()">保存</button>
+                <button class="btn-danger" style="width:auto; padding:0 10px; font-size:12px; margin:0;" onclick="deleteApiPreset()">删除</button>
+            </div>
+        </div>
+      </div>
       <button class="btn-primary" onclick="saveSettings()">保存配置</button>
       <div class="form-group" style="margin-top:20px;"><div style="display:flex;gap:10px;padding:10px 0;"><button class="btn-secondary" style="flex:1;margin:0;" onclick="exportBackup()">导出数据</button><button class="btn-secondary" style="flex:1;margin:0;" onclick="document.getElementById('backup-upload').click()">导入数据</button></div></div>
     </div>
@@ -599,14 +609,39 @@
           </label>
         </div>
       </div>
-       <div class="form-group">
-        <div class="form-row-item"><label style="font-weight:bold;">桌面壁纸</label></div>
-        <div style="text-align:center; padding: 10px 0;">
-            <div id="wallpaper-preview" style="width: 100px; height: 180px; border-radius: 8px; border: 1px solid #ddd; background: var(--bg-gradient); background-size: cover; background-position: center;"></div>
+      <div class="form-group">
+        <div class="form-row-item"><label style="font-weight:bold;">壁纸与背景</label></div>
+        <div style="display: flex; justify-content: space-around; padding: 10px 0;">
+            <div style="text-align:center;">
+                <div id="wallpaper-preview" style="width: 100px; height: 180px; border-radius: 8px; border: 1px solid #ddd; background: var(--bg-gradient); background-size: cover; background-position: center; margin: 0 auto 5px;"></div>
+                <div style="font-size:12px; color:#666;">桌面壁纸</div>
+            </div>
+            <div style="text-align:center;">
+                 <img id="chat-bg-preview" style="width: 100px; height: 180px; border-radius: 8px; border: 1px solid #ddd; object-fit: cover; background-color: #f2f2f7; margin: 0 auto 5px;" alt="Chat background preview">
+                 <div style="font-size:12px; color:#666;">聊天背景</div>
+            </div>
         </div>
         <div style="display:flex; gap:10px; padding: 10px 0;">
             <button class="btn-secondary" style="flex:1;margin:0;" onclick="document.getElementById('wallpaper-upload').click()">上传壁纸</button>
-            <button class="btn-secondary" style="flex:1;margin:0; background:#aaa;" onclick="removeDesktopWallpaper()">移除壁纸</button>
+            <button class="btn-secondary" style="flex:1;margin:0;" onclick="document.getElementById('chat-bg-upload').click()">上传背景</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-item">
+            <label style="font-weight:bold;">全局字体</label>
+            <input type="text" id="font-url-input" class="form-input" placeholder="输入字体 .ttf / .woff2 链接" style="border-bottom: 1px solid #eee; margin-bottom: 10px;">
+            <button class="btn-secondary" style="padding: 8px; font-size: 14px; margin-bottom:10px;" onclick="applyFontFromInput()">应用字体</button>
+            <div id="font-preview" style="font-size: 16px; padding: 15px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee;">
+                字体预览: The quick brown fox jumps over the lazy dog. 12345
+            </div>
+        </div>
+        <div class="form-item">
+            <label>字体预设</label>
+            <div style="display:flex; gap: 8px;">
+                <select id="font-preset-select" class="form-select" style="border:1px solid #ddd; border-radius:6px; flex:1;" onchange="loadFontPreset()"></select>
+                <button class="btn-secondary" style="width:auto; padding:0 10px; font-size:12px; margin:0;" onclick="saveFontPreset()">保存</button>
+                <button class="btn-danger" style="width:auto; padding:0 10px; font-size:12px; margin:0;" onclick="deleteFontPreset()">删除</button>
+            </div>
         </div>
       </div>
       <div class="form-group">
@@ -627,18 +662,6 @@
             <div id="custom-icon-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top:10px; text-align:center;">
             </div>
         </div>
-      </div>
-      <div class="form-group">
-          <div class="form-row-item" style="padding-bottom:5px;">
-              <label style="font-weight:bold;">聊天背景</label>
-          </div>
-          <div style="text-align:center; padding: 10px 0;">
-              <img id="chat-bg-preview" style="width: 100px; height: 180px; border-radius: 8px; border: 1px solid #ddd; object-fit: cover; background-color: #f2f2f7;" alt="Chat background preview">
-          </div>
-          <div style="display:flex; gap:10px; padding: 10px 0;">
-              <button class="btn-secondary" style="flex:1;margin:0;" onclick="document.getElementById('chat-bg-upload').click()">上传背景</button>
-              <button class="btn-secondary" style="flex:1;margin:0; background:#aaa;" onclick="removeChatBackground()">移除背景</button>
-          </div>
       </div>
     </div>
   </div>
@@ -1053,6 +1076,17 @@
     </div>
   </div>
 
+  <div id="modal-edit-message" class="modal">
+    <div class="modal-content">
+      <h3>编辑消息</h3>
+      <textarea id="edit-message-input" class="form-textarea" style="margin:10px 0; background:#f9f9f9; padding:10px; border-radius:8px;"></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button class="btn-secondary" onclick="closeModal('modal-edit-message')">取消</button>
+        <button class="btn-primary" onclick="saveEditedMessage()">保存</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -1101,6 +1135,9 @@
   let appIconStyle = localStorage.getItem('appIconStyle') || 'default';
   let customAppIcons = JSON.parse(localStorage.getItem('customAppIcons')) || {};
   let currentEditingIcon = null;
+  let fontPresets = JSON.parse(localStorage.getItem('fontPresets')) || {};
+  let activeFontUrl = localStorage.getItem('activeFontUrl') || '';
+  let apiPresets = JSON.parse(localStorage.getItem('apiPresets')) || {};
   
   let currentChatId = null; let autoGenInterval = null; let tempMomentImg = ""; let selectedMsgIndex = null; let longPressTimer = null;
   let isMultiSelectMode = false; let selectedMessageIndices = [];
@@ -1109,6 +1146,7 @@
   let selectedChatListId = null;
   let tempNewCharAvatar = '';
   let commentLongPressTimer = null;
+  let editingMessageIndex = null;
 
   let passwordModalContext = {
       mode: 'verify', // 'verify' or 'set'
@@ -1140,7 +1178,7 @@
   let savedUserName = localStorage.getItem('userName') || '用户姓名';
   let savedUserBio = localStorage.getItem('userBio') || '> 天天开心 <';
   let savedUserPersona = localStorage.getItem('userPersona') || '我是一个活泼开朗、喜欢开玩笑的女孩。';
-  let savedUserCover = localStorage.getItem('userCover') || 'https://picsum.photos/400/300';
+  let savedUserCover = localStorage.getItem('userCover') || '';
   let walletBalance = parseFloat(localStorage.getItem('walletBalance')) || 1314.52;
   let walletPassword = localStorage.getItem('walletPassword') || null;
   
@@ -1297,6 +1335,7 @@
     document.getElementById('api-model').value = config.model;
     document.getElementById('api-temp').value = config.temp;
     document.getElementById('temp-display').innerText = config.temp;
+    renderApiPresets();
     showScreen('screen-settings');
   }
   
@@ -1370,16 +1409,15 @@
     updateWallpaperPreview();
     document.getElementById('icon-style-select').value = appIconStyle;
     renderCustomIconEditor();
+    renderFontPresets();
     showScreen('screen-themes'); 
   }
   function toggleFullscreen(checked) { isFullscreen = checked; localStorage.setItem('isFullscreen', checked); if(checked) phoneShell.classList.add('fullscreen-mode'); else phoneShell.classList.remove('fullscreen-mode'); }
 
   function applyChatBackground() { const chatMessages = document.getElementById('chat-messages'); if (chatBackgroundImage) { chatMessages.style.backgroundImage = `url('${chatBackgroundImage}')`; chatMessages.style.backgroundSize = 'cover'; chatMessages.style.backgroundPosition = 'center'; chatMessages.style.backgroundAttachment = 'fixed'; } else { chatMessages.style.backgroundImage = 'none'; chatMessages.style.backgroundColor = '#f2f2f7'; chatMessages.style.backgroundAttachment = 'scroll'; } }
-  function removeChatBackground() { if (confirm("确定要移除聊天背景吗?")) { chatBackgroundImage = null; localStorage.removeItem('chatBackgroundImage'); applyChatBackground(); updateChatBgPreview(); } }
   function updateChatBgPreview() { const preview = document.getElementById('chat-bg-preview'); if (preview) { preview.src = chatBackgroundImage || ''; } }
   
   function applyDesktopWallpaper() { const home=document.getElementById('screen-home'); if(desktopWallpaper){ home.style.backgroundImage=`url('${desktopWallpaper}')`; home.style.backgroundSize='cover'; home.style.backgroundPosition='center'; }else{ home.style.backgroundImage='var(--bg-gradient)'; } }
-  function removeDesktopWallpaper() { desktopWallpaper=null; localStorage.removeItem('desktopWallpaper'); applyDesktopWallpaper(); updateWallpaperPreview(); }
   function updateWallpaperPreview() { const preview=document.getElementById('wallpaper-preview'); if(desktopWallpaper){ preview.style.backgroundImage=`url('${desktopWallpaper}')`; }else{ preview.style.backgroundImage='var(--bg-gradient)'; } }
   
   function applyAppIconStyle() {
@@ -1495,13 +1533,9 @@
       const statusBar = document.querySelector('#screen-wechat .status-bar');
       const navBar = document.getElementById('wx-nav-bar');
 
-      if (id === 'moments') {
-        statusBar.classList.add('transparent');
-        navBar.classList.add('transparent');
-      } else {
-        statusBar.classList.remove('transparent');
-        navBar.classList.remove('transparent');
-      }
+      // Make Moments header white, remove transparent style from others
+      statusBar.classList.remove('transparent');
+      navBar.classList.remove('transparent');
 
       if(id==='moments') renderMoments(); 
       if(id==='contacts') renderAddressBook();
@@ -1522,7 +1556,7 @@
     closeModal('modal-user-persona');
     showToast('人设已保存', 'success');
   }
-  function updateMomentsHeader() { document.getElementById('moments-avatar').style.backgroundImage=`url('${savedUserAvatar}')`; document.getElementById('moments-name').innerText=savedUserName; document.getElementById('moments-header').style.backgroundImage=`url('${savedUserCover}')`; }
+  function updateMomentsHeader() { document.getElementById('moments-avatar').style.backgroundImage=`url('${savedUserAvatar}')`; document.getElementById('moments-name').innerText=savedUserName; document.getElementById('moments-header').style.backgroundImage = savedUserCover ? `url('${savedUserCover}')` : 'none'; }
 
   function handleInput() { const val = document.getElementById('msg-input').value; if(val.trim().length > 0) { document.getElementById('btn-plus').style.display = 'none'; document.getElementById('btn-send').style.display = 'block'; document.getElementById('input-area').classList.add('typing-mode'); } else { document.getElementById('btn-plus').style.display = 'flex'; document.getElementById('btn-send').style.display = 'none'; document.getElementById('input-area').classList.remove('typing-mode'); } }
   
@@ -1786,11 +1820,47 @@
         return;
     }
 
-    if (action === 'delete') { char.history.splice(selectedMsgIndex, 1); } 
+    if (action === 'delete') { 
+      char.history.splice(selectedMsgIndex, 1); 
+    } 
     else if (action === 'recall') { const isSelf = msg.role === 'user'; const name = isSelf ? "你" : (msg.roleName || char.name); char.history[selectedMsgIndex] = { role: 'system', content: `"${name}" 撤回了一条消息` }; } 
-    else if (action === 'edit') { if (msg.role === 'system' || msg.isImage || msg.content.startsWith('[DICE:')) { showToast("该消息不可编辑", "info"); return; } const newText = prompt("编辑:", msg.content); if (newText) msg.content = newText; }
+    else if (action === 'edit') { 
+        if (msg.role === 'system' || msg.isImage || msg.content.startsWith('[DICE:') || msg.content.startsWith('[TRANSFER]')) { 
+            showToast("该消息不可编辑", "info"); 
+            return; 
+        } 
+        showEditMessageModal(selectedMsgIndex);
+        return; 
+    }
     else if (action === 'multi-select') { enterMultiSelectMode(selectedMsgIndex); return; }
     localStorage.setItem('contacts', JSON.stringify(contacts)); openChat(currentChatId); 
+  }
+
+  function showEditMessageModal(index) {
+      const char = contacts.find(c => c.id === currentChatId);
+      if (!char || !char.history || !char.history[index]) return;
+      
+      editingMessageIndex = index;
+      const msg = char.history[index];
+      
+      document.getElementById('edit-message-input').value = msg.content;
+      document.getElementById('modal-edit-message').style.display = 'flex';
+      document.getElementById('edit-message-input').focus();
+  }
+
+  function saveEditedMessage() {
+      if (editingMessageIndex === null) return;
+      
+      const char = contacts.find(c => c.id === currentChatId);
+      if (!char) return;
+
+      const newText = document.getElementById('edit-message-input').value;
+      char.history[editingMessageIndex].content = newText;
+      
+      localStorage.setItem('contacts', JSON.stringify(contacts));
+      closeModal('modal-edit-message');
+      openChat(currentChatId);
+      editingMessageIndex = null;
   }
 
   function startReply(name, content) {
@@ -1835,6 +1905,7 @@
     currentChatId = id; const u = contacts.find(c => c.id === id); if (!u) return; 
     document.getElementById('chat-title').innerText = u.name; 
     const c = document.getElementById('chat-messages'); c.innerHTML = ''; 
+    c.onclick = () => { document.getElementById('action-panel').classList.remove('show'); };
     
     let lastTime = 0;
     if(u.history && u.history.length > 0) { 
@@ -2093,6 +2164,7 @@ Your goal is to generate the next turn(s) in the conversation. Read the recent c
 4.  **Formatting:** You MUST use the following format. Separate each individual message bubble with '|||'.
     \`CharacterName::Message content.|||AnotherCharacterName::Their message.|||CharacterName::A second message from the first character.\`
 5.  **DO NOT** generate a response for "${savedUserName}".
+6.  **Special Actions**: To roll a dice, a character must output ONLY \`[CMD:ROLL_DICE]\`. For example: \`CharacterName::[CMD:ROLL_DICE]\`
 
 Now, based on the following chat history, generate the next response(s).`;
     } else {
@@ -2197,6 +2269,18 @@ Now, based on the following chat history, generate the next response(s).`;
                  const s = contacts.find(c => c.id == randId);
                  senderName = s ? s.name : "群友";
               }
+          }
+          if (content === '[CMD:ROLL_DICE]') {
+              const diceValue = Math.floor(Math.random() * 6) + 1;
+              const diceContent = `[DICE:${diceValue}]`;
+              const newMsg = { id: 'msg_' + Date.now(), role: "assistant", content: diceContent, isImage: false, roleName: senderName, timestamp: Date.now(), quote: null };
+              char.history.push(newMsg);
+              appendMessageUI(newMsg, false, false, null);
+              
+              setTimeout(() => {
+                  processReplySequence(char, parts, index + 1, originalTitle);
+              }, 1000 + Math.random() * 1000);
+              return; 
           }
       } else {
           // Check for quotes in non-group chat
@@ -2943,7 +3027,6 @@ Now, based on the following chat history, generate the next response(s).`;
   
   function deleteSelectedMessages() {
     if (selectedMessageIndices.length === 0) return;
-    if (!confirm(`确定要删除 ${selectedMessageIndices.length} 条消息吗？`)) return;
 
     const char = contacts.find(c => c.id === currentChatId);
     if (!char || !char.history) return;
@@ -3291,7 +3374,16 @@ Now, based on the following chat history, generate the next response(s).`;
   async function generateAIMomentInternal(char) {
     if (!config.key) { console.error("No API key for moment generation."); return; }
     
-    const prompt = `System: You are ${char.name}. Your persona is "${char.prompt}". Task: Generate a short, realistic social media post (like WeChat Moments). It can be about daily life, feelings, or a shared picture. Keep it concise.
+    const recentHistory = char.history ? char.history.slice(-10).map(m => {
+        if(m.role === 'user') return `${savedUserName}: ${m.content}`;
+        return `${char.name}: ${m.content}`;
+    }).join('\n') : "No recent conversation.";
+
+    const prompt = `System: You are ${char.name}. Your persona is "${char.prompt}". 
+    Here is the recent chat history with ${savedUserName} for context:
+    ${recentHistory}
+    
+    Task: Based on your persona AND the recent conversation, generate a short, realistic social media post (like WeChat Moments). It can be about daily life, feelings, or a shared picture. Keep it concise.
     Example: "今天天气真好，出门散步。" or "又是一个加班的夜晚，好累啊。"
     You can also generate a post with an image. To do this, provide an image description in the format [IMAGE: a cat sleeping on a sofa]. The image will be generated automatically.
     Do not add your name to the post. Just provide the content.`;
@@ -3345,6 +3437,156 @@ Now, based on the following chat history, generate the next response(s).`;
     }
   }
 
+  // --- Font Functions ---
+  function applyFont(url) {
+      if (!url) {
+          const existingStyle = document.getElementById('custom-font-style');
+          if (existingStyle) existingStyle.remove();
+          document.getElementById('font-preview').style.fontFamily = 'inherit';
+          activeFontUrl = '';
+          localStorage.setItem('activeFontUrl', '');
+          return;
+      }
+      const format = url.endsWith('.ttf') ? 'truetype' : 'woff2';
+      const fontName = 'CustomFont';
+      let style = document.getElementById('custom-font-style');
+      if (!style) {
+          style = document.createElement('style');
+          style.id = 'custom-font-style';
+          document.head.appendChild(style);
+      }
+      style.innerHTML = `
+          @font-face {
+              font-family: '${fontName}';
+              src: url('${url}') format('${format}');
+          }
+          body, input, textarea, button, select {
+              font-family: '${fontName}', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+          }
+      `;
+      document.getElementById('font-preview').style.fontFamily = fontName;
+      activeFontUrl = url;
+      localStorage.setItem('activeFontUrl', activeFontUrl);
+  }
+
+  function applyFontFromInput(){
+      const url = document.getElementById('font-url-input').value.trim();
+      if(url) {
+        applyFont(url);
+        showToast('字体已应用', 'success');
+      } else {
+        applyFont(null);
+        showToast('已恢复默认字体', 'info');
+      }
+  }
+
+  function renderFontPresets() {
+      const select = document.getElementById('font-preset-select');
+      select.innerHTML = '<option value="">选择预设...</option>';
+      for (const name in fontPresets) {
+          const option = document.createElement('option');
+          option.value = name;
+          option.textContent = name;
+          select.appendChild(option);
+      }
+  }
+
+  function loadFontPreset() {
+      const select = document.getElementById('font-preset-select');
+      const name = select.value;
+      if (name && fontPresets[name]) {
+          document.getElementById('font-url-input').value = fontPresets[name];
+          applyFont(fontPresets[name]);
+          showToast(`已加载预设 "${name}"`, 'info');
+      }
+  }
+
+  function saveFontPreset() {
+      const url = document.getElementById('font-url-input').value.trim();
+      if (!url) {
+          showToast('请输入字体链接', 'error');
+          return;
+      }
+      const name = prompt('输入预设名称:', '');
+      if (name) {
+          fontPresets[name] = url;
+          localStorage.setItem('fontPresets', JSON.stringify(fontPresets));
+          renderFontPresets();
+          showToast('预设已保存', 'success');
+      }
+  }
+
+  function deleteFontPreset() {
+      const select = document.getElementById('font-preset-select');
+      const name = select.value;
+      if (name && fontPresets[name]) {
+          if (confirm(`确定要删除预设 "${name}" 吗?`)) {
+              delete fontPresets[name];
+              localStorage.setItem('fontPresets', JSON.stringify(fontPresets));
+              renderFontPresets();
+              showToast('预设已删除', 'success');
+          }
+      } else {
+          showToast('请先选择一个要删除的预设', 'info');
+      }
+  }
+
+  // --- API Preset Functions ---
+  function renderApiPresets() {
+      const select = document.getElementById('api-preset-select');
+      select.innerHTML = '<option value="">选择预设...</option>';
+      for (const name in apiPresets) {
+          const option = document.createElement('option');
+          option.value = name;
+          option.textContent = name;
+          select.appendChild(option);
+      }
+  }
+
+  function loadApiPreset() {
+      const select = document.getElementById('api-preset-select');
+      const name = select.value;
+      if (name && apiPresets[name]) {
+          const preset = apiPresets[name];
+          document.getElementById('api-url').value = preset.url || '';
+          document.getElementById('api-key').value = preset.key || '';
+          document.getElementById('api-model').value = preset.model || '';
+          document.getElementById('api-temp').value = preset.temp || 0.8;
+          document.getElementById('temp-display').innerText = preset.temp || 0.8;
+          showToast(`已加载预设 "${name}"`, 'info');
+      }
+  }
+
+  function saveApiPreset() {
+      const name = prompt('输入预设名称:', '');
+      if (name) {
+          apiPresets[name] = {
+              url: document.getElementById('api-url').value,
+              key: document.getElementById('api-key').value,
+              model: document.getElementById('api-model').value,
+              temp: parseFloat(document.getElementById('api-temp').value)
+          };
+          localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
+          renderApiPresets();
+          showToast('预设已保存', 'success');
+      }
+  }
+
+  function deleteApiPreset() {
+      const select = document.getElementById('api-preset-select');
+      const name = select.value;
+      if (name && apiPresets[name]) {
+          if (confirm(`确定要删除预设 "${name}" 吗?`)) {
+              delete apiPresets[name];
+              localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
+              renderApiPresets();
+              showToast('预设已删除', 'success');
+          }
+      } else {
+          showToast('请先选择一个要删除的预设', 'info');
+      }
+  }
+
 
   if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; }
   document.getElementById('msg-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMessage(); });
@@ -3355,6 +3597,7 @@ Now, based on the following chat history, generate the next response(s).`;
   applyChatBackground();
   applyDesktopWallpaper();
   applyAppIconStyle();
+  if (activeFontUrl) { applyFont(activeFontUrl); }
   renderContacts(); renderAddressBook();
 </script>
 </body>
