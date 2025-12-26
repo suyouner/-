@@ -814,6 +814,17 @@
     </div>
   </div>
 
+  <div id="modal-wb-new-group" class="modal">
+    <div class="modal-content">
+      <h3>新建世界书分组</h3>
+      <input type="text" id="new-wb-group-name-input" placeholder="分组名" style="width:100%;padding:10px;margin-bottom:10px;">
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button class="btn-secondary" onclick="closeModal('modal-wb-new-group')">取消</button>
+        <button class="btn-primary" onclick="confirmAddNewWBGroup()">添加</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-wb" class="modal">
     <div class="modal-content">
       <h3 id="wb-modal-title">编辑世界书</h3>
@@ -1037,16 +1048,39 @@
     const cMenu = document.getElementById('msg-context-menu');
     if (cMenu.style.display === 'block' && !e.target.closest('#msg-context-menu')) { cMenu.style.display = 'none'; }
     const coMenu = document.getElementById('comment-context-menu');
-    if (coMenu.style.display === 'block' && !e.target.closest('#comment-context-menu')) { coMenu.style.display = 'none'; }
+    if (coMenu.style.display === 'block' && !e.target.closest('#comment-context-menu') && !e.target.closest('.m-comment-item')) { coMenu.style.display = 'none'; }
     const addMenu = document.getElementById('add-menu');
     if (addMenu.style.display === 'block' && !e.target.closest('#add-menu') && !e.target.closest('#wx-add-btn')) { addMenu.style.display = 'none'; }
     const clMenu = document.getElementById('chat-list-context-menu');
     if (clMenu.style.display === 'block' && !e.target.closest('#chat-list-context-menu')) { clMenu.style.display = 'none'; }
     const commentBar = document.getElementById('moment-comment-bar');
-    if (commentBar.style.display === 'flex' && !e.target.closest('#moment-comment-bar') && !e.target.closest('.m-comment-item') && !e.target.closest('.m-actions-btn')) {
-        hideMomentCommentBar();
+    if (commentBar.style.display === 'flex' && !e.target.closest('#moment-comment-bar') && !e.target.closest('.m-actions-btn')) {
+        const commentItemClicked = e.target.closest('.m-comment-item');
+        if (!commentItemClicked) {
+             hideMomentCommentBar();
+        }
     }
   });
+
+  const momentsContainer = document.getElementById('moments-container');
+  if (momentsContainer) {
+      momentsContainer.addEventListener('click', (e) => {
+          const commentItem = e.target.closest('.m-comment-item');
+          if (commentItem) {
+              const { momentId, authorId, authorName } = commentItem.dataset;
+              replyToComment(momentId, authorId, authorName);
+          }
+      });
+
+      momentsContainer.addEventListener('contextmenu', (e) => {
+          const commentItem = e.target.closest('.m-comment-item');
+          if (commentItem) {
+              e.preventDefault();
+              const { momentId, commentIndex } = commentItem.dataset;
+              showCommentContextMenu(e, momentId, parseInt(commentIndex, 10));
+          }
+      });
+  }
 
   document.getElementById('avatar-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{homeAvatarImg.style.backgroundImage=`url('${ev.target.result}')`;localStorage.setItem('userAvatar',ev.target.result);savedUserAvatar=ev.target.result;updateMeTab();updateMomentsHeader();};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
   document.getElementById('char-avatar-upload').addEventListener('change', (e)=>{const r=new FileReader();r.onload=(ev)=>{document.getElementById('setting-avatar-preview').src=ev.target.result;};if(e.target.files[0])r.readAsDataURL(e.target.files[0]);});
@@ -1145,7 +1179,29 @@
 
   function openWorldBooks() { if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; } renderGroupBar(); renderWBList(); showScreen('screen-worldbooks'); }
   function renderGroupBar() { const bar = document.getElementById('wb-group-bar'); bar.innerHTML = ''; let allPill = document.createElement('div'); allPill.className = `group-pill ${currentGroupView==='全部'?'active':''}`; allPill.innerText='全部'; allPill.onclick=()=>{ currentGroupView='全部'; openWorldBooks(); }; bar.appendChild(allPill); wbGroups.forEach(g => { let p = document.createElement('div'); p.className=`group-pill ${currentGroupView===g?'active':''}`; p.innerText=g; p.onclick=()=>{ currentGroupView=g; openWorldBooks(); }; p.ondblclick=()=>deleteGroup(g); bar.appendChild(p); }); let add = document.createElement('div'); add.className='group-add-btn'; add.innerText='+'; add.onclick=addNewGroup; bar.appendChild(add); }
-  function addNewGroup() { const n = prompt("新分组名:"); if(n && !wbGroups.includes(n)) { wbGroups.push(n); localStorage.setItem('wbGroups', JSON.stringify(wbGroups)); renderGroupBar(); } }
+  
+  function addNewGroup() {
+    document.getElementById('new-wb-group-name-input').value = '';
+    document.getElementById('modal-wb-new-group').style.display = 'flex';
+    document.getElementById('new-wb-group-name-input').focus();
+  }
+
+  function confirmAddNewWBGroup() {
+    const input = document.getElementById('new-wb-group-name-input');
+    const n = input.value.trim();
+    if (n && !wbGroups.includes(n)) {
+        wbGroups.push(n);
+        localStorage.setItem('wbGroups', JSON.stringify(wbGroups));
+        renderGroupBar();
+        closeModal('modal-wb-new-group');
+        showToast(`分组 "${n}" 已添加`, 'success');
+    } else if (!n) {
+        showToast('分组名不能为空', 'error');
+    } else {
+        showToast('该分组已存在', 'error');
+    }
+  }
+
   function deleteGroup(g) { if(g==='默认') return; if(confirm(`删除分组 ${g}?`)) { wbGroups=wbGroups.filter(x=>x!==g); worldBooks.forEach(b=>{ if(b.group===g) b.group='默认' }); localStorage.setItem('wbGroups',JSON.stringify(wbGroups)); localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); currentGroupView='全部'; openWorldBooks(); } }
   function renderWBList() { const c = document.getElementById('wb-list-container'); c.innerHTML = ''; let list = currentGroupView==='全部' ? worldBooks : worldBooks.filter(b=>(b.group||'默认')===currentGroupView); list.forEach(wb => { let d = document.createElement('div'); d.className='wb-item'; d.innerHTML = `<div onclick="editWB('${wb.id}')" style="flex:1"><div class="wb-title">${wb.title} <span class="wb-tag">${wb.group||'默认'}</span></div><div class="wb-preview">${wb.content}</div></div><i class="fas fa-trash" style="color:#ff5252;padding:10px" onclick="deleteWB('${wb.id}')"></i>`; c.appendChild(d); }); if (list.length === 0) { c.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无世界书内容，点击右上角+号添加</div>'; } }
   function showAddWBModal() { document.getElementById('wb-modal-title').innerText="新建世界书"; document.getElementById('wb-id').value=''; document.getElementById('wb-title').value=''; document.getElementById('wb-content').value=''; const s = document.getElementById('wb-group-select'); s.innerHTML=''; wbGroups.forEach(g=>{ let o=document.createElement('option'); o.value=g; o.innerText=g; if(currentGroupView===g) o.selected=true; s.appendChild(o); }); document.getElementById('modal-wb').style.display='flex'; }
@@ -2021,39 +2077,11 @@ Now, based on the following chat history, generate the next response(s).`;
             const comDiv = document.createElement('div');
             comDiv.className = 'm-comment-item';
             comDiv.innerHTML = commentText;
-
-            let longPressTimer = null;
-    
-            comDiv.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                showCommentContextMenu(e, m.id, index);
-            });
-
-            comDiv.addEventListener('touchstart', (e) => {
-                clearTimeout(longPressTimer);
-                longPressTimer = setTimeout(() => {
-                    longPressTimer = null;
-                    showCommentContextMenu(e.touches[0], m.id, index);
-                }, 500);
-            }, { passive: true });
-
-            const cancelLongPress = () => { clearTimeout(longPressTimer); };
-
-            comDiv.addEventListener('touchend', (e) => {
-                if (longPressTimer) {
-                    clearTimeout(longPressTimer);
-                    replyToComment(m.id, com.authorId, cName);
-                }
-            });
             
-            comDiv.addEventListener('touchmove', cancelLongPress);
-            comDiv.addEventListener('touchcancel', cancelLongPress);
-
-            comDiv.addEventListener('click', (e) => {
-                 if (!e.sourceCapabilities || !e.sourceCapabilities.firesTouchEvents) {
-                    replyToComment(m.id, com.authorId, cName);
-                }
-            });
+            comDiv.dataset.momentId = m.id;
+            comDiv.dataset.commentIndex = index;
+            comDiv.dataset.authorId = com.authorId;
+            comDiv.dataset.authorName = cName;
 
             commentsContainer.appendChild(comDiv);
         });
@@ -2134,9 +2162,16 @@ Now, based on the following chat history, generate the next response(s).`;
 
     let x = e.pageX;
     let y = e.pageY;
+    
+    const shellRect = phoneShell.getBoundingClientRect();
+    x = x - shellRect.left;
+    y = y - shellRect.top;
+
     if (x + 150 > phoneShell.offsetWidth) x = phoneShell.offsetWidth - 160;
     if (y + 200 > phoneShell.offsetHeight) y = phoneShell.offsetHeight - 200;
     if (x < 10) x = 10;
+    if (y < 10) y = 10;
+
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
     menu.style.display = 'block';
@@ -2913,6 +2948,7 @@ Now, based on the following chat history, generate the next response(s).`;
   document.getElementById('msg-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMessage(); });
   document.getElementById('moment-comment-send').onclick = sendMomentComment;
   document.getElementById('moment-comment-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMomentComment(); });
+  document.getElementById('new-wb-group-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmAddNewWBGroup(); });
   applyChatBackground();
   renderContacts(); renderAddressBook(); setTimeout(renderEmojiPanel, 100);
 </script>
