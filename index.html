@@ -203,7 +203,7 @@
   .m-content { flex: 1; font-size: 15px; }
   .m-name { color: var(--wx-blue); font-weight: bold; margin-bottom: 5px; font-size: 16px; }
   .m-text { line-height: 1.5; margin-bottom: 8px; color: #333; }
-  .m-img { max-width: 150px; max-height: 150px; border-radius: 4px; display: block; margin-bottom: 8px; cursor: pointer; }
+  .m-img { max-width: 150px; max-height: 150px; width: 150px; height: 150px; border-radius: 4px; display: block; margin-bottom: 8px; cursor: pointer; object-fit: cover; background-color: #eee; }
   .m-meta { display: flex; justify-content: space-between; align-items: center; color: #999; font-size: 12px; margin-top: 5px; }
   .m-actions-btn { background: #f2f2f2; padding: 2px 8px; border-radius: 4px; color: #576b95; cursor: pointer; }
   .m-comments-area { background: #f7f7f7; margin-top: 8px; border-radius: 4px; padding: 5px 10px; font-size: 13px; }
@@ -285,6 +285,7 @@
   #msg-context-menu div, #add-menu div, #chat-list-context-menu div, #comment-context-menu div { display: flex; align-items: center; gap: 10px; padding: 12px 15px; font-size: 14px; cursor: pointer; position: relative; }
   #msg-context-menu div:not(:last-child), #add-menu div:not(:last-child), #chat-list-context-menu div:not(:last-child), #comment-context-menu div:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.15); }
   #msg-context-menu div:active, #add-menu div:active, #chat-list-context-menu div:active, #comment-context-menu div:active { background: rgba(255,255,255,0.1); }
+  #comment-context-menu i { width: 16px; text-align: center; }
   #add-menu { top: 50px; right: 10px; width: 140px; }
   #chat-list-context-menu { padding: 0; }
 
@@ -453,6 +454,10 @@
 
 <div id="phone-shell">
   <div id="system-toast"></div>
+  
+  <div id="image-lightbox" onclick="hideLightbox()" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; cursor: pointer;">
+    <img src="" style="max-width: 90%; max-height: 90%; object-fit: contain;">
+  </div>
 
   <div id="msg-context-menu">
     <div onclick="menuAction('reply')">引用</div>
@@ -469,8 +474,10 @@
   </div>
 
   <div id="comment-context-menu">
-    <div onclick="menuActionComment('retry')">重试</div>
-    <div onclick="menuActionComment('delete')">删除</div>
+    <div onclick="menuActionComment('reply')"><i class="fas fa-reply"></i> 回复</div>
+    <div onclick="menuActionComment('edit')"><i class="fas fa-pen"></i> 编辑</div>
+    <div onclick="menuActionComment('retry')"><i class="fas fa-sync-alt"></i> 重试</div>
+    <div onclick="menuActionComment('delete')"><i class="fas fa-trash-alt"></i> 删除</div>
   </div>
 
   <div id="add-menu">
@@ -2015,54 +2022,33 @@ Now, based on the following chat history, generate the next response(s).`;
             comDiv.className = 'm-comment-item';
             comDiv.innerHTML = commentText;
 
-            let touchstartX = 0;
-            let touchstartY = 0;
-            let touchTimer = null;
-
-            comDiv.addEventListener('touchstart', (e) => {
-                touchstartX = e.changedTouches[0].screenX;
-                touchstartY = e.changedTouches[0].screenY;
-                
-                touchTimer = setTimeout(() => {
-                    touchTimer = null; // Flag that it fired
-                    e.preventDefault();
-                    showCommentContextMenu(e.changedTouches[0], m.id, index);
-                }, 500);
-            }, { passive: false });
-
-            comDiv.addEventListener('touchmove', (e) => {
-                 if (touchTimer) {
-                    const touchendX = e.changedTouches[0].screenX;
-                    const touchendY = e.changedTouches[0].screenY;
-                    const dx = Math.abs(touchendX - touchstartX);
-                    const dy = Math.abs(touchendY - touchstartY);
-                    if (dx > 5 || dy > 5) { // If moved more than 5px, cancel timer
-                        clearTimeout(touchTimer);
-                        touchTimer = null;
-                    }
-                 }
-            });
-
-            comDiv.addEventListener('touchend', (e) => {
-                if (!touchTimer) return; // Long press already fired or was cancelled by move
-                clearTimeout(touchTimer);
-                
-                const touchendX = e.changedTouches[0].screenX;
-                const touchendY = e.changedTouches[0].screenY;
-                const dx = Math.abs(touchendX - touchstartX);
-                const dy = Math.abs(touchendY - touchstartY);
-                
-                if (dx < 5 && dy < 5) { // Check if it was a tap (not a scroll)
-                    e.preventDefault();
-                    replyToComment(m.id, com.authorId, cName);
-                }
-            });
-
+            let longPressTimer = null;
+    
             comDiv.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 showCommentContextMenu(e, m.id, index);
             });
+
+            comDiv.addEventListener('touchstart', (e) => {
+                clearTimeout(longPressTimer);
+                longPressTimer = setTimeout(() => {
+                    longPressTimer = null;
+                    showCommentContextMenu(e.touches[0], m.id, index);
+                }, 500);
+            }, { passive: true });
+
+            const cancelLongPress = () => { clearTimeout(longPressTimer); };
+
+            comDiv.addEventListener('touchend', (e) => {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    replyToComment(m.id, com.authorId, cName);
+                }
+            });
             
+            comDiv.addEventListener('touchmove', cancelLongPress);
+            comDiv.addEventListener('touchcancel', cancelLongPress);
+
             comDiv.addEventListener('click', (e) => {
                  if (!e.sourceCapabilities || !e.sourceCapabilities.firesTouchEvents) {
                     replyToComment(m.id, com.authorId, cName);
@@ -2073,7 +2059,7 @@ Now, based on the following chat history, generate the next response(s).`;
         });
 
         let deleteBtn = (m.authorId === 'user') ? `<span class="m-del-btn" onclick="deleteMoment('${m.id}')">删除</span>` : '';
-        let imgHtml = m.image ? `<img src="${m.image}" class="msg-img" onclick="showToast('预览图片')">` : '';
+        let imgHtml = m.image ? `<img src="${m.image}" class="m-img" onclick="showLightbox('${m.image}')">` : '';
         let visibilityIcon = "";
         
         if(m.authorId === 'user' && m.visibleTo !== 'all') { visibilityIcon = `<span style="font-size:12px;color:#999;margin-left:5px;"><i class="fas fa-user-friends"></i> ${m.visibleTo}</span>`; }
@@ -2087,43 +2073,46 @@ Now, based on the following chat history, generate the next response(s).`;
   }
   
   function saveMoments() { localStorage.setItem('moments', JSON.stringify(moments)); }
-  function deleteMoment(mid) { if(confirm("删除这条朋友圈？")) { moments = moments.filter(m => m.id !== mid); saveMoments(); renderMoments(); } }
+  function deleteMoment(mid) { 
+    moments = moments.filter(m => m.id !== mid); 
+    saveMoments(); 
+    renderMoments(); 
+  }
   function likeMoment(mid) { const m = moments.find(x => x.id === mid); if(!m) return; if(m.likes.includes('user')) { m.likes = m.likes.filter(u => u !== 'user'); } else { m.likes.push('user'); } saveMoments(); renderMoments(); }
   
   function sendMomentComment() {
       const bar = document.getElementById('moment-comment-bar');
       const mid = bar.dataset.momentId;
       const input = document.getElementById('moment-comment-input');
-      const replyToName = bar.dataset.replyToName;
-      const replyToId = bar.dataset.replyToId;
+      const txt = input.value.trim();
+      if (!txt || !mid) return;
 
-      let txt = input.value.trim();
-      if (!txt) return;
+      const m = moments.find(x => x.id === mid);
+      if (!m) return;
+      
+      const editIndex = bar.dataset.editIndex;
 
-      if (mid) {
-          const m = moments.find(x => x.id === mid);
-          if (m) {
-              const newComment = { authorId: 'user', content: txt };
-              if (replyToName) {
-                  newComment.replyTo = replyToName;
-              }
-              m.comments.push(newComment);
-              saveMoments();
-              renderMoments();
-              
-              if (m.authorId !== 'user' && !replyToId) { // Replying to the post author
-                  triggerAICommentReply(m, newComment);
-              } else if (replyToId) { // Replying to another commenter
-                  const originalCommenter = contacts.find(c => c.id == replyToId);
-                  if (originalCommenter) {
-                     triggerAICommentChainReaction(m, newComment);
-                  }
-              }
+      if (editIndex !== undefined) {
+          m.comments[parseInt(editIndex, 10)].content = txt;
+          showToast('编辑成功', 'success');
+      } else {
+          const replyToName = bar.dataset.replyToName;
+          const replyToId = bar.dataset.replyToId;
+          const newComment = { authorId: 'user', content: txt };
+          if (replyToName) {
+              newComment.replyTo = replyToName;
+          }
+          m.comments.push(newComment);
+          
+          if (m.authorId !== 'user' && !replyToId) { 
+              triggerAICommentReply(m, newComment);
+          } else if (replyToId && replyToId !== 'user') {
+              triggerAICommentChainReaction(m, newComment);
           }
       }
       
-      input.value = '';
-      input.placeholder = '评论...';
+      saveMoments();
+      renderMoments();
       hideMomentCommentBar();
   }
 
@@ -2134,8 +2123,11 @@ Now, based on the following chat history, generate the next response(s).`;
     const moment = moments.find(m => m.id === momentId);
     if (!moment || !moment.comments[commentIndex]) return;
 
-    // Per user request, the menu should appear for ANY comment.
-    // The logic to handle the actions is inside menuActionComment.
+    const comment = moment.comments[commentIndex];
+    const isUserComment = comment.authorId === 'user';
+
+    menu.querySelector('[onclick="menuActionComment(\'retry\')"]').style.display = isUserComment ? 'none' : 'flex';
+    menu.querySelector('[onclick="menuActionComment(\'edit\')"]').style.display = isUserComment ? 'flex' : 'none';
     
     menu.dataset.momentId = momentId;
     menu.dataset.commentIndex = commentIndex;
@@ -2143,7 +2135,7 @@ Now, based on the following chat history, generate the next response(s).`;
     let x = e.pageX;
     let y = e.pageY;
     if (x + 150 > phoneShell.offsetWidth) x = phoneShell.offsetWidth - 160;
-    if (y + 150 > phoneShell.offsetHeight) y = phoneShell.offsetHeight - 150;
+    if (y + 200 > phoneShell.offsetHeight) y = phoneShell.offsetHeight - 200;
     if (x < 10) x = 10;
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
@@ -2157,10 +2149,8 @@ Now, based on the following chat history, generate the next response(s).`;
     menu.style.display = 'none';
 
     if (isNaN(commentIndex) || !momentId) return;
-
     const moment = moments.find(m => m.id === momentId);
     if (!moment) return;
-
     const targetComment = moment.comments[commentIndex];
     if (!targetComment) return;
 
@@ -2170,31 +2160,50 @@ Now, based on the following chat history, generate the next response(s).`;
         saveMoments();
         renderMoments();
     } else if (action === 'retry') {
+        if (targetComment.authorId !== 'user') {
+            const character = contacts.find(c => c.id == targetComment.authorId);
+            if (character) {
+                moment.comments.splice(commentIndex, 1);
+                generateAICommentForMoment(character, moment);
+            }
+        }
+    } else if (action === 'edit') {
         if (targetComment.authorId === 'user') {
-            showToast('自己的评论无法重试', 'info');
-            return; // Exit without changing anything
+            editComment(momentId, commentIndex);
         }
-
-        const character = contacts.find(c => c.id == targetComment.authorId);
-        if (character) {
-            // Remove the old comment. The generator function will save and re-render.
-            moment.comments.splice(commentIndex, 1);
-            generateAICommentForMoment(character, moment);
-            showToast(`正在为 ${character.name} 生成新回复...`, 'info');
-        } else {
-            // Fallback for a character that has been deleted
-            moment.comments.splice(commentIndex, 1);
-            showToast('无法重试，评论已删除', 'info');
-            saveMoments();
-            renderMoments();
-        }
+    } else if (action === 'reply') {
+        const authorId = targetComment.authorId;
+        const authorName = (authorId === 'user') ? savedUserName : (contacts.find(c=>c.id==authorId)?.name || 'Unknown');
+        replyToComment(momentId, authorId, authorName);
     }
   }
   
+  function editComment(momentId, commentIndex) {
+      const moment = moments.find(m => m.id === momentId);
+      if (!moment || !moment.comments[commentIndex]) return;
+      
+      const commentText = moment.comments[commentIndex].content;
+
+      const bar = document.getElementById('moment-comment-bar');
+      bar.style.display = 'flex';
+      bar.dataset.momentId = momentId;
+      bar.dataset.editIndex = commentIndex;
+      
+      delete bar.dataset.replyToName;
+      delete bar.dataset.replyToId;
+
+      const input = document.getElementById('moment-comment-input');
+      input.value = commentText;
+      input.placeholder = `编辑评论...`;
+      input.focus();
+      input.setSelectionRange(commentText.length, commentText.length);
+  }
+
   function commentMoment(mid) {
       const bar = document.getElementById('moment-comment-bar');
-      bar.dataset.replyToName = '';
-      bar.dataset.replyToId = '';
+      delete bar.dataset.replyToName;
+      delete bar.dataset.replyToId;
+      delete bar.dataset.editIndex;
       const input = document.getElementById('moment-comment-input');
       input.value = '';
       input.placeholder = '评论...';
@@ -2211,6 +2220,7 @@ Now, based on the following chat history, generate the next response(s).`;
     
     bar.dataset.replyToName = authorName;
     bar.dataset.replyToId = authorId;
+    delete bar.dataset.editIndex;
     
     const input = document.getElementById('moment-comment-input');
     input.value = '';
@@ -2224,9 +2234,26 @@ Now, based on the following chat history, generate the next response(s).`;
           bar.style.display = 'none';
           document.getElementById('moment-comment-input').value = '';
           document.getElementById('moment-comment-input').placeholder = '评论...';
-          bar.dataset.momentId = '';
-          bar.dataset.replyToName = '';
-          bar.dataset.replyToId = '';
+          delete bar.dataset.momentId;
+          delete bar.dataset.replyToName;
+          delete bar.dataset.replyToId;
+          delete bar.dataset.editIndex;
+      }
+  }
+  
+  function showLightbox(src) {
+      const lightbox = document.getElementById('image-lightbox');
+      if (lightbox) {
+          lightbox.querySelector('img').src = src;
+          lightbox.style.display = 'flex';
+      }
+  }
+
+  function hideLightbox() {
+      const lightbox = document.getElementById('image-lightbox');
+      if (lightbox) {
+          lightbox.style.display = 'none';
+          lightbox.querySelector('img').src = '';
       }
   }
 
