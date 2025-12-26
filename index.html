@@ -11,7 +11,7 @@
     --bg-gradient: linear-gradient(180deg, #fce4ec 0%, #f8bbd9 100%);
     --app-bg: #f2f2f7;
     --pink-accent: #f48fb1;
-    --bubble-me: #07c160; /* Updated User Bubble Color */
+    --bubble-me: rgb(133, 229, 80); /* Updated User Bubble Color */
     --bubble-other: #ffffff;
     --wx-green: #07c160;
     --wx-orange: #f79c4a;
@@ -533,8 +533,6 @@
   </div>
 
   <div id="comment-context-menu">
-    <div onclick="menuActionComment('reply')"><i class="fas fa-reply"></i> 回复</div>
-    <div onclick="menuActionComment('edit')"><i class="fas fa-pen"></i> 编辑</div>
     <div onclick="menuActionComment('retry')"><i class="fas fa-sync-alt"></i> 重试</div>
     <div onclick="menuActionComment('delete')"><i class="fas fa-trash-alt"></i> 删除</div>
   </div>
@@ -1110,6 +1108,7 @@
   let currentPasswordAttempt = '';
   let selectedChatListId = null;
   let tempNewCharAvatar = '';
+  let commentLongPressTimer = null;
 
   let passwordModalContext = {
       mode: 'verify', // 'verify' or 'set'
@@ -1188,6 +1187,19 @@
               showCommentContextMenu(e, momentId, parseInt(commentIndex, 10));
           }
       });
+      
+      momentsContainer.addEventListener('touchstart', (e) => {
+        const commentItem = e.target.closest('.m-comment-item');
+        if (commentItem) {
+            commentLongPressTimer = setTimeout(() => {
+                const { momentId, commentIndex } = commentItem.dataset;
+                showCommentContextMenu(e, momentId, parseInt(commentIndex, 10));
+            }, 500);
+        }
+      });
+
+      momentsContainer.addEventListener('touchend', () => clearTimeout(commentLongPressTimer));
+      momentsContainer.addEventListener('touchmove', () => clearTimeout(commentLongPressTimer));
   }
 
   function compressImage(base64Str, quality = 0.7, maxWidth = 800) {
@@ -1524,10 +1536,12 @@
         grid.innerHTML = '';
         const char = contacts.find(c => c.id === currentChatId);
 
-        let items = [{ icon: 'fas fa-image', color:'#333', name:'相册', action: "document.getElementById('img-send-upload').click()" }];
+        let items = [
+          { icon: 'fas fa-image', color:'#333', name:'相册', action: "document.getElementById('img-send-upload').click()" },
+        ];
         
         if (char && char.isGroup) {
-            items.push({ icon: 'fas fa-envelope-open-text', color:'#f44336', name:'群发红包', action: 'sendGroupRedPacket()' });
+            items.push({ icon: 'fas fa-dice', color:'#f44336', name:'骰子', action: 'sendDiceMessage' });
         } else if(char) {
             items.push({ icon: 'fas fa-exchange-alt', color: '#fa9d3b', name: '转账', action: 'sendTransfer()' });
             items.push({ icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" });
@@ -1586,12 +1600,15 @@
     bar.appendChild(addGroupBtn);
     bar.appendChild(addEmojiBtn);
     
-    if (currentEmojiGroup === '全部' || currentEmojiGroup === '默认') {
-      const diceBtn = document.createElement('div');
-      diceBtn.className = 'emoji-item';
-      diceBtn.innerHTML = `<i class="fas fa-dice" style="font-size:36px; color:#333;"></i>`;
-      diceBtn.onclick = sendDiceMessage;
-      grid.appendChild(diceBtn);
+    const char = contacts.find(c => c.id === currentChatId);
+    if (!char || !char.isGroup) {
+      if (currentEmojiGroup === '全部' || currentEmojiGroup === '默认') {
+        const diceBtn = document.createElement('div');
+        diceBtn.className = 'emoji-item';
+        diceBtn.innerHTML = `<i class="fas fa-dice" style="font-size:36px; color:#333;"></i>`;
+        diceBtn.onclick = sendDiceMessage;
+        grid.appendChild(diceBtn);
+      }
     }
 
     const emojisToShow = currentEmojiGroup === '全部' ? customEmojis : customEmojis.filter(e => e.group === currentEmojiGroup);
@@ -2072,9 +2089,9 @@ Your goal is to generate the next turn(s) in the conversation. Read the recent c
 ### Rules for Generating Responses:
 1.  **Logical Flow:** Characters should react to what was just said. If the user asks a question to a specific character, that character should answer. If the topic is general, decide who is most likely to comment based on their persona.
 2.  **In-Character:** Every message MUST reflect the persona of the character speaking.
-3.  **Turn-Taking:** It's okay for one character to speak, or for a few characters to respond in a quick sequence if it feels natural (e.g., reacting to a joke). Avoid having everyone speak at once. Don't always have the same person speak.
-4.  **Formatting:** You MUST use the following format. Separate each character's message with '|||'.
-    \`CharacterName::Message content.|||AnotherCharacterName::Their message.\`
+3.  **Turn-Taking:** It's okay for one character to speak, or for a few characters to respond in a quick sequence if it feels natural (e.g., reacting to a joke). Crucially, a single character can send multiple consecutive messages to simulate realistic typing behavior. Avoid having everyone speak at once. Don't always have the same person speak.
+4.  **Formatting:** You MUST use the following format. Separate each individual message bubble with '|||'.
+    \`CharacterName::Message content.|||AnotherCharacterName::Their message.|||CharacterName::A second message from the first character.\`
 5.  **DO NOT** generate a response for "${savedUserName}".
 
 Now, based on the following chat history, generate the next response(s).`;
@@ -2444,7 +2461,7 @@ Now, based on the following chat history, generate the next response(s).`;
             const comDiv = document.createElement('div');
             comDiv.className = 'm-comment-item';
             comDiv.innerHTML = commentText;
-            
+
             comDiv.dataset.momentId = m.id;
             comDiv.dataset.commentIndex = index;
             comDiv.dataset.authorId = com.authorId;
@@ -2473,6 +2490,7 @@ Now, based on the following chat history, generate the next response(s).`;
     saveMoments(); 
     renderMoments(); 
   }
+
   function likeMoment(mid) { const m = moments.find(x => x.id === mid); if(!m) return; if(m.likes.includes('user')) { m.likes = m.likes.filter(u => u !== 'user'); } else { m.likes.push('user'); } saveMoments(); renderMoments(); }
   
   function sendMomentComment() {
@@ -2521,21 +2539,33 @@ Now, based on the following chat history, generate the next response(s).`;
     const comment = moment.comments[commentIndex];
     const isUserComment = comment.authorId === 'user';
 
-    menu.querySelector('[onclick="menuActionComment(\'retry\')"]').style.display = isUserComment ? 'none' : 'flex';
-    menu.querySelector('[onclick="menuActionComment(\'edit\')"]').style.display = isUserComment ? 'flex' : 'none';
+    const retryOption = menu.querySelector('[onclick="menuActionComment(\'retry\')"]');
+    const deleteOption = menu.querySelector('[onclick="menuActionComment(\'delete\')"]');
+
+    if (isUserComment) {
+        retryOption.style.display = 'none';
+        deleteOption.style.display = 'flex';
+    } else {
+        retryOption.style.display = 'flex';
+        deleteOption.style.display = 'flex';
+    }
     
     menu.dataset.momentId = momentId;
     menu.dataset.commentIndex = commentIndex;
 
     let x = e.pageX;
     let y = e.pageY;
+    if (e.touches && e.touches.length > 0) {
+        x = e.touches[0].pageX;
+        y = e.touches[0].pageY;
+    }
     
     const shellRect = phoneShell.getBoundingClientRect();
     x = x - shellRect.left;
     y = y - shellRect.top;
 
     if (x + 150 > phoneShell.offsetWidth) x = phoneShell.offsetWidth - 160;
-    if (y + 200 > phoneShell.offsetHeight) y = phoneShell.offsetHeight - 200;
+    if (y + 150 > phoneShell.offsetHeight) y = phoneShell.offsetHeight - 150;
     if (x < 10) x = 10;
     if (y < 10) y = 10;
 
@@ -2557,10 +2587,12 @@ Now, based on the following chat history, generate the next response(s).`;
     if (!targetComment) return;
 
     if (action === 'delete') {
-        moment.comments.splice(commentIndex, 1);
-        showToast('评论已删除', 'success');
-        saveMoments();
-        renderMoments();
+        if (confirm('确定要删除这条评论吗？')) {
+            moment.comments.splice(commentIndex, 1);
+            showToast('评论已删除', 'success');
+            saveMoments();
+            renderMoments();
+        }
     } else if (action === 'retry') {
         if (targetComment.authorId !== 'user') {
             const character = contacts.find(c => c.id == targetComment.authorId);
@@ -2569,14 +2601,6 @@ Now, based on the following chat history, generate the next response(s).`;
                 generateAICommentForMoment(character, moment);
             }
         }
-    } else if (action === 'edit') {
-        if (targetComment.authorId === 'user') {
-            editComment(momentId, commentIndex);
-        }
-    } else if (action === 'reply') {
-        const authorId = targetComment.authorId;
-        const authorName = (authorId === 'user') ? savedUserName : (contacts.find(c=>c.id==authorId)?.name || 'Unknown');
-        replyToComment(momentId, authorId, authorName);
     }
   }
   
