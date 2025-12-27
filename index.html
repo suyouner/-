@@ -251,7 +251,7 @@
   .message { max-width: 70%; padding: 10px 14px; border-radius: 6px; font-size: 16px; line-height: 1.4; background: #fff; position: relative; word-wrap: break-word; user-select: text; }
   .msg-quote { background: rgba(0,0,0,0.05); border-left: 3px solid #ccc; padding: 4px 8px; margin-bottom: 5px; font-size: 13px; color: #666; border-radius: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .msg-row.sent .message { background: var(--bubble-me); color: #000; }
-  .msg-thought { color: #999; font-style: italic; }
+  .msg-thought-offline { text-decoration: underline; color: #999; }
   
   .msg-red-packet { background: #fa9d3b !important; color: white !important; display: flex; align-items: center; width: 220px; }
   .msg-red-packet i { font-size: 24px; color: #f7dd4a; margin-right: 10px;}
@@ -358,11 +358,50 @@
   .wb-group-bar { display: flex; overflow-x: auto; padding: 10px 15px; background: #fff; border-bottom: 1px solid #eee; gap: 8px; white-space: nowrap; height: 50px; }
   .group-pill { padding: 6px 12px; background: #f0f0f0; border-radius: 15px; font-size: 14px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
   .group-pill.active { background: var(--pink-accent); color: white; }
-  .group-add-btn { padding: 6px 12px; background: #e0e0e0; border-radius: 15px; font-size: 14px; cursor: pointer; flex-shrink: 0; }
+  .group-add-btn { 
+    padding: 6px 12px; 
+    background: transparent; 
+    border: 2px dashed #d0d0d0; 
+    border-radius: 15px; 
+    font-size: 12px; 
+    color: #b0b0b0;
+    cursor: pointer; 
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .group-add-btn:hover {
+    background: #f5f5f5;
+    color: #777;
+    border-color: #b0b0b0;
+  }
   .wb-item { display: flex; align-items: center; padding: 15px; background: #fff; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
   .wb-title { font-weight: bold; margin-bottom: 5px; color: #333; display: flex; align-items: center; gap: 8px; }
   .wb-tag { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #666; }
   .wb-preview { color: #666; font-size: 14px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+
+  /* World Book Modal */
+  #modal-wb .form-input, 
+  #modal-wb .form-select, 
+  #modal-wb .form-textarea {
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 5px;
+      background: #f9f9f9;
+      font-size: 15px;
+  }
+  #modal-wb .form-item {
+      padding: 10px 0;
+      border-bottom: none;
+  }
+  #modal-wb .form-label {
+      font-weight: bold;
+      font-size: 14px;
+      color: #555;
+  }
 
   /* 个人页面样式 */
   .me-header { background: linear-gradient(135deg, #fbc2eb, #a6c1ee); padding: 30px 20px; display: flex; align-items: center; gap: 15px; color: white; cursor: pointer; }
@@ -926,12 +965,22 @@
   </div>
 
   <div id="modal-add-char" class="modal">
-    <div class="modal-content" style="text-align: center;">
-      <h3>添加好友</h3>
-      <div id="new-char-avatar-preview" style="width: 80px; height: 80px; border-radius: 10px; background-color: #eee; margin: 15px auto; background-size: cover; background-position: center; cursor: pointer; display: flex; justify-content: center; align-items: center; color: #999; font-size: 24px;" onclick="document.getElementById('new-char-avatar-upload').click()"><i class="fas fa-camera"></i></div>
-      <input type="text" id="new-name" placeholder="名字" style="width:100%;padding:10px;margin-bottom:10px;text-align:left;">
-      <textarea id="new-prompt" rows="3" placeholder="人设..." style="width:100%;padding:10px;text-align:left;"></textarea>
-      <div class="modal-button-group" style="margin-top:10px;">
+    <div class="modal-content">
+      <h3 style="text-align: center; margin-bottom: 20px;">添加好友</h3>
+      <div style="text-align: center; margin-bottom: 15px;">
+          <div id="new-char-avatar-preview" style="width: 80px; height: 80px; border-radius: 10px; background-color: #eee; margin: 0 auto; background-size: cover; background-position: center; cursor: pointer; display: flex; justify-content: center; align-items: center; color: #999; font-size: 24px; border: 1px solid #ddd;" onclick="document.getElementById('new-char-avatar-upload').click()"><i class="fas fa-camera"></i></div>
+      </div>
+      <div class="form-group" style="padding:0; box-shadow:none; border: none; margin: 0;">
+        <div class="form-item">
+          <label class="form-label" style="font-weight:bold;">名字</label>
+          <input type="text" id="new-name" class="form-input" placeholder="好友的称呼" style="border: 1px solid #eee; border-radius: 8px; padding: 10px; background: #f9f9f9;">
+        </div>
+        <div class="form-item">
+          <label class="form-label" style="font-weight:bold;">人设 (Prompt)</label>
+          <textarea id="new-prompt" class="form-textarea" rows="4" placeholder="详细描述好友的性格、背景、说话方式等..." style="border: 1px solid #eee; border-radius: 8px; padding: 10px; background: #f9f9f9; min-height: 100px;"></textarea>
+        </div>
+      </div>
+      <div class="modal-button-group" style="margin-top: 20px;">
         <button class="btn-secondary" onclick="closeModal('modal-add-char')">取消</button>
         <button class="btn-primary" onclick="addNewChar()">添加</button>
       </div>
@@ -1023,12 +1072,23 @@
 
   <div id="modal-wb" class="modal">
     <div class="modal-content">
-      <h3 id="wb-modal-title">编辑世界书</h3>
-      <input type="text" id="wb-title" placeholder="标题">
-      <select id="wb-group-select" class="form-select" style="border:1px solid #ddd;padding:10px;"></select>
-      <textarea id="wb-content" rows="6" placeholder="内容..."></textarea>
+      <h3 id="wb-modal-title" style="margin-bottom: 20px; text-align: center;">新建世界书</h3>
+      <div class="form-group" style="padding:0; box-shadow:none; border: none; margin: 0;">
+        <div class="form-item">
+            <label class="form-label">标题</label>
+            <input type="text" id="wb-title" class="form-input" placeholder="例如：人物关系设定">
+        </div>
+        <div class="form-item">
+            <label class="form-label">分组</label>
+            <select id="wb-group-select" class="form-select"></select>
+        </div>
+        <div class="form-item">
+            <label class="form-label">内容</label>
+            <textarea id="wb-content" class="form-textarea" rows="6" placeholder="详细描述设定..."></textarea>
+        </div>
+      </div>
       <input type="hidden" id="wb-id">
-      <div class="modal-button-group" style="margin-top:10px;">
+      <div class="modal-button-group" style="margin-top:20px;">
         <button class="btn-secondary" onclick="closeModal('modal-wb')">取消</button>
         <button class="btn-primary" onclick="saveWB()">保存</button>
       </div>
@@ -1062,18 +1122,32 @@
   
   <div id="modal-char-moment-settings" class="modal">
     <div class="modal-content">
-      <h3>管理</h3>
-      <div class="form-item"><label class="form-label">选择角色</label><select id="moment-char-select" class="form-select" style="border:1px solid #ddd;padding:8px;"></select></div>
-      <div class="form-row-item" style="margin-top:15px;">
-        <label>自动后台生成</label>
-        <label class="switch"><input type="checkbox" id="moment-auto-toggle" onchange="toggleAutoMoment(this.checked)"><span class="slider"></span></label>
+      <h3 style="text-align: center; margin-bottom: 20px;">角色朋友圈管理</h3>
+
+      <div class="form-group" style="padding: 0 15px; box-shadow:none; border:1px solid #eee;">
+        <div class="form-item">
+          <label class="form-label" style="font-weight:bold;">手动生成单条</label>
+          <p style="font-size:12px; color:#999;">为指定角色立即生成一条朋友圈动态。</p>
+          <select id="moment-char-select" class="form-select" style="border:1px solid #ddd; padding:8px; margin-top:10px;"></select>
+          <button class="btn-primary" style="margin-top:10px; margin-bottom: 5px;" onclick="generateAIMoment()">生成一条</button>
+        </div>
       </div>
-      <div id="auto-moment-char-list-container" style="display:none; margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
-        <label style="font-size:14px; color:#666;">选择要开启的角色:</label>
-        <div id="auto-moment-char-list" class="selection-list" style="max-height:150px;"></div>
+
+      <div class="form-group" style="padding: 0 15px; box-shadow:none; border:1px solid #eee; margin-top:20px;">
+        <div class="form-row-item">
+          <label style="font-weight:bold;">后台自动生成</label>
+          <label class="switch">
+            <input type="checkbox" id="moment-auto-toggle" onchange="toggleAutoMoment(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div id="auto-moment-char-list-container" style="display:none; padding-top:10px;">
+          <label style="font-size:14px; color:#666;">选择要开启的角色:</label>
+          <div id="auto-moment-char-list" class="selection-list" style="max-height:150px;"></div>
+        </div>
       </div>
-      <button class="btn-primary" onclick="generateAIMoment()">生成一条</button>
-      <button class="btn-secondary" onclick="closeModal('modal-char-moment-settings')">关闭</button>
+      
+      <button class="btn-secondary" style="margin-top:20px;" onclick="closeModal('modal-char-moment-settings')">关闭</button>
     </div>
   </div>
 
@@ -1591,6 +1665,22 @@
       }
   }
 
+  function openWeChat() { 
+    hideMomentCommentBar(); 
+    updateMeTab(); 
+    updateMomentsHeader(); 
+    switchWxTab('chat', document.querySelector('.wechat-footer .wx-tab:first-child')); 
+    renderContacts(); 
+    showScreen('screen-wechat'); 
+  }
+
+  function openWorldBooks() { 
+    if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; } 
+    renderGroupBar(); 
+    renderWBList(); 
+    showScreen('screen-worldbooks'); 
+  }
+  
   function openThemes() { 
     document.getElementById('theme-fullscreen-toggle').checked = isFullscreen; 
     updateChatBgPreview(); 
@@ -1600,6 +1690,7 @@
     renderFontPresets();
     showScreen('screen-themes'); 
   }
+
   function toggleFullscreen(checked) { isFullscreen = checked; localStorage.setItem('isFullscreen', checked); if(checked) phoneShell.classList.add('fullscreen-mode'); else phoneShell.classList.remove('fullscreen-mode'); }
 
   function applyChatBackground() { const chatMessages = document.getElementById('chat-messages'); if (chatBackgroundImage) { chatMessages.style.backgroundImage = `url('${chatBackgroundImage}')`; chatMessages.style.backgroundSize = 'cover'; chatMessages.style.backgroundPosition = 'center'; chatMessages.style.backgroundAttachment = 'fixed'; } else { chatMessages.style.backgroundImage = 'none'; chatMessages.style.backgroundColor = '#f2f2f7'; chatMessages.style.backgroundAttachment = 'scroll'; } }
@@ -1653,8 +1744,7 @@
       document.getElementById('custom-icon-upload').click();
   }
 
-  function openWorldBooks() { if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; } renderGroupBar(); renderWBList(); showScreen('screen-worldbooks'); }
-  function renderGroupBar() { const bar = document.getElementById('wb-group-bar'); bar.innerHTML = ''; let allPill = document.createElement('div'); allPill.className = `group-pill ${currentGroupView==='全部'?'active':''}`; allPill.innerText='全部'; allPill.onclick=()=>{ currentGroupView='全部'; openWorldBooks(); }; bar.appendChild(allPill); wbGroups.forEach(g => { let p = document.createElement('div'); p.className=`group-pill ${currentGroupView===g?'active':''}`; p.innerText=g; p.onclick=()=>{ currentGroupView=g; openWorldBooks(); }; p.ondblclick=()=>deleteGroup(g); bar.appendChild(p); }); let add = document.createElement('div'); add.className='group-add-btn'; add.innerText='+'; add.onclick=addNewGroup; bar.appendChild(add); }
+  function renderGroupBar() { const bar = document.getElementById('wb-group-bar'); bar.innerHTML = ''; let allPill = document.createElement('div'); allPill.className = `group-pill ${currentGroupView==='全部'?'active':''}`; allPill.innerText='全部'; allPill.onclick=()=>{ currentGroupView='全部'; openWorldBooks(); }; bar.appendChild(allPill); wbGroups.forEach(g => { let p = document.createElement('div'); p.className=`group-pill ${currentGroupView===g?'active':''}`; p.innerText=g; p.onclick=()=>{ currentGroupView=g; openWorldBooks(); }; p.ondblclick=()=>deleteGroup(g); bar.appendChild(p); }); let add = document.createElement('div'); add.className='group-add-btn'; add.innerHTML='<i class="fas fa-plus"></i>'; add.onclick=addNewGroup; bar.appendChild(add); }
   
   function addNewGroup() {
     document.getElementById('new-wb-group-name-input').value = '';
@@ -1685,7 +1775,6 @@
   function saveWB() { const id=document.getElementById('wb-id').value; const title=document.getElementById('wb-title').value; const content=document.getElementById('wb-content').value; const group=document.getElementById('wb-group-select').value; if(!title) { showToast('标题不能为空', 'info'); return; } if(id) { const i=worldBooks.findIndex(b=>b.id===id); if(i>-1) worldBooks[i]={id,title,content,group}; } else { worldBooks.push({ id:'wb_'+Date.now(), title, content, group }); } localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); closeModal('modal-wb'); openWorldBooks(); }
   function deleteWB(id) { if(confirm('删除?')) { worldBooks=worldBooks.filter(b=>b.id!==id); localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); openWorldBooks(); } }
 
-  function openWeChat() { hideMomentCommentBar(); updateMeTab(); updateMomentsHeader(); switchWxTab('chat', document.querySelector('.wechat-footer .wx-tab:first-child')); renderContacts(); showScreen('screen-wechat'); }
   function backToWeChat() { 
     exitMultiSelectMode(); 
     document.getElementById('action-panel').classList.remove('show');
@@ -1760,13 +1849,11 @@
 
       let items = [
         { icon: 'fas fa-image', color:'#333', name:'相册', action: "document.getElementById('img-send-upload').click()" },
-        { icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" },
-        { icon: 'fas fa-theater-masks', color:'#ff9800', name:'线下模式', action: "openOfflineModeSettings()" }
+        { icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" }
       ];
       
-      if (char && char.isGroup) {
-          items.push({ icon: 'fas fa-dice', color:'#f44336', name:'骰子', action: 'sendDiceMessage' });
-      } else if(char) {
+      if (char && !char.isGroup) {
+          items.push({ icon: 'fas fa-theater-masks', color:'#ff9800', name:'线下模式', action: "openOfflineModeSettings()" });
           items.push({ icon: 'fas fa-exchange-alt', color: '#fa9d3b', name: '转账', action: 'sendTransfer()' });
       }
       
@@ -1824,7 +1911,7 @@
     bar.appendChild(addEmojiBtn);
     
     const char = contacts.find(c => c.id === currentChatId);
-    if (!char || !char.isGroup) {
+    if (char && char.isGroup) {
       if (currentEmojiGroup === '全部' || currentEmojiGroup === '默认') {
         const diceBtn = document.createElement('div');
         diceBtn.className = 'emoji-item';
@@ -2224,7 +2311,13 @@
     } else { 
       let processedContent = content;
       if (char.offlineMode && char.offlineMode.enabled) {
-          processedContent = processedContent.replace(/\((.*?)\)/g, '<span class="msg-thought">($1)</span>');
+          const tempDiv = document.createElement('div');
+          tempDiv.textContent = processedContent; // Basic HTML escaping
+          processedContent = tempDiv.innerHTML;
+          // Format based on offline mode rules
+          processedContent = processedContent.replace(/\((.*?)\)/g, '($1)') // Actions: No change needed if already in parens
+                                              .replace(/"(.*?)"/g, '"$1"') // Dialogue: No change needed
+                                              .replace(/\{(.*?)\}/g, '<span class="msg-thought-offline">$1</span>'); // Thoughts
       }
       const quoteHtml = quote ? `<div class="msg-quote">${quote.name}: ${quote.content}</div>` : '';
       bubbleHtml = `<div class="message">${quoteHtml}${processedContent}</div>`; 
@@ -2425,9 +2518,10 @@ You are interacting with ${savedUserName}, whose persona is: "${savedUserPersona
     -   Refer to the user as **${povMap[userPov]}**.
 2.  **Output Format:**
     -   Combine actions, dialogue, and internal thoughts into a single, flowing narrative paragraph.
-    -   Enclose all spoken dialogue in double quotes (" ").
-    -   **Crucially, enclose all internal thoughts and psychological descriptions in parentheses, like this: (I wondered what they meant by that.)**
-3.  **Psychological Descriptions:** You **${showThoughts ? 'MUST' : 'MUST NOT'}** include psychological descriptions (internal thoughts).
+    -   Enclose all **actions** in parentheses, like this: (He smiled and waved.)
+    -   Enclose all spoken **dialogue** in double quotes, like this: "It's a beautiful day."
+    -   **Crucially, enclose all internal thoughts and psychological descriptions in curly braces, like this: {I wonder what they're thinking.}**
+3.  **Psychological Descriptions:** You **${showThoughts ? 'MUST' : 'MUST NOT'}** include psychological descriptions (internal thoughts in {}).
 4.  **Word Count:** Aim for a response length of approximately **${wordCount}** words.
 5.  **Writing Style:** Emulate the tone and style of the following text:
     ---
@@ -4084,23 +4178,30 @@ Now, based on the following chat history, generate the next response(s).`;
       }
   }
 
+  // --- Initial Setup ---
+  updateClock();
+  setInterval(updateClock, 15000);
 
   if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; }
+
+  // Keypress handlers for modal inputs
   document.getElementById('msg-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMessage(); });
-  document.getElementById('moment-comment-send').onclick = sendMomentComment;
   document.getElementById('moment-comment-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMomentComment(); });
   document.getElementById('new-wb-group-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmAddNewWBGroup(); });
   document.getElementById('new-emoji-group-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmAddNewEmojiGroup(); });
+  document.getElementById('topup-amount')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmTopUp(); });
+  document.getElementById('transfer-amount')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmTransfer(); });
   document.getElementById('api-preset-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmSaveApiPreset(); });
-  
-  updateClock();
-  setInterval(updateClock, 1000);
+  document.getElementById('edit-message-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") saveEditedMessage(); });
 
-  applyChatBackground();
+  // Click handlers
+  document.getElementById('moment-comment-send').onclick = sendMomentComment;
+
+  // Final UI applications on load
   applyDesktopWallpaper();
+  applyChatBackground();
   applyAppIconStyle();
-  if (activeFontUrl) { applyFont(activeFontUrl); }
-  renderContacts(); renderAddressBook();
+  if (activeFontUrl) applyFont(activeFontUrl);
 </script>
 </body>
 </html>
