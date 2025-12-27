@@ -240,7 +240,7 @@
   .group-tag { font-size: 10px; background: #ddd; color: #666; padding: 1px 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 
   /* 聊天气泡 & 时间 */
-  #chat-messages { flex: 1; overflow-y: auto; padding: 15px; background: #f2f2f7; display: flex; flex-direction: column; gap: 15px; height: calc(100% - 44px - 44px - 56px); }
+  #chat-messages { flex: 1; overflow-y: auto; padding: 15px; background: transparent; display: flex; flex-direction: column; gap: 15px; height: calc(100% - 44px - 44px - 56px); }
   .chat-time-label { text-align: center; font-size: 12px; color: #999; margin: 10px 0 5px 0; }
   .msg-row { display: flex; width: 100%; align-items: flex-start; transition: background-color 0.2s; position: relative; }
   .msg-row.multi-select-mode .message { cursor: pointer; }
@@ -838,7 +838,7 @@
     </div>
     <div id="moment-comment-bar">
         <input type="text" id="moment-comment-input" placeholder="评论...">
-        <button id="moment-comment-send">发送</button>
+        <button id="moment-comment-send" onclick="sendMomentComment()">发送</button>
     </div>
   </div>
 
@@ -1317,7 +1317,7 @@
   let currentGroupView = '全部';
   let toastTimer = null;
 
-  function showToast(message, type = 'info', duration = 2000) {
+  window.showToast = function(message, type = 'info', duration = 2000) {
       const toast = document.getElementById('system-toast');
       if (!toast) return;
 
@@ -1345,7 +1345,7 @@
     temp: parseFloat(localStorage.getItem('apiTemp')) || 0.8
   };
   
-  let contacts = JSON.parse(localStorage.getItem('contacts')) || [{ id: 1, name: "男友", realname: "", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=Boy", prompt: "你是用户的男朋友，温柔体贴，偶尔会有点小霸道。", worldBookId: 'wb_1', hideAvatar: 'none', history: [], syncReality: false, useRealTime: false, useRealWeather: false, city: '', group: '特别关心', isGroup: false, isPinned: false, members: [], memory: { auto: false, limit: 20, summary: "" }, unreadCount: 0 }];
+  let contacts = JSON.parse(localStorage.getItem('contacts')) || [{ id: 1, name: "男友", realname: "", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=Boy", prompt: "你是用户的男朋友，温柔体贴，偶尔会有点小霸道。", worldBookId: 'wb_1', hideAvatar: 'none', history: [], syncReality: false, useRealTime: false, useRealWeather: false, city: '', latitude: null, longitude: null, group: '特别关心', isGroup: false, isPinned: false, members: [], memory: { auto: false, limit: 20, summary: "" }, unreadCount: 0 }];
   
   // Data hydration
   contacts.forEach(c => {
@@ -1365,6 +1365,8 @@
             styleWbId: ''
         };
     }
+    if (c.latitude === undefined) c.latitude = null;
+    if (c.longitude === undefined) c.longitude = null;
   });
 
 
@@ -1396,6 +1398,8 @@
   let lastAutoMomentTimestamp = 0;
   let lastDisplayedTimestamp = 0;
   let notificationTimer = null;
+  let lastNotificationCharId = null;
+
 
   let passwordModalContext = {
       mode: 'verify', // 'verify' or 'set'
@@ -1546,10 +1550,10 @@
     r.onload = async (ev)=>{
       try {
         const compressedSrc = await compressImage(ev.target.result);
-        sendImageMessageOnly(compressedSrc);
+        window.sendImageMessageOnly(compressedSrc);
       } catch(err) {
         console.error("Image compression failed", err);
-        sendImageMessageOnly(ev.target.result); // fallback to original
+        window.sendImageMessageOnly(ev.target.result); // fallback to original
       }
     };
     r.readAsDataURL(e.target.files[0]);
@@ -1586,12 +1590,12 @@
   });
 
 
-  function editHomeText(type) { let k = type === 'name' ? 'userName' : 'userBio'; let el = document.getElementById('home-user-' + type); if (el.style.display === 'none') return; let currentVal = el.innerText; let input = document.createElement('input'); input.type = 'text'; input.value = currentVal; input.className = el.className; input.style.fontSize = window.getComputedStyle(el).fontSize; input.style.fontWeight = window.getComputedStyle(el).fontWeight; input.style.color = window.getComputedStyle(el).color; input.style.textAlign = 'center'; input.style.width = '100%'; input.style.border = 'none'; input.style.background = 'rgba(255,255,255,0.5)'; input.style.borderRadius = '5px'; input.style.padding = '5px'; el.style.display = 'none'; el.parentNode.insertBefore(input, el.nextSibling); input.focus(); const save = () => { let newVal = input.value.trim(); if (newVal) { el.innerText = newVal; localStorage.setItem(k, newVal); if (type === 'name') { savedUserName = newVal; updateMeTab(); updateMomentsHeader(); } else if (type === 'bio') { savedUserBio = newVal; } } el.style.display = ''; input.parentNode.removeChild(input); }; input.addEventListener('blur', save); input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { input.blur(); } else if (e.key === 'Escape') { el.style.display = ''; input.parentNode.removeChild(input); } }); }
-  function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-  function goHome() { hideMomentCommentBar(); showScreen('screen-home'); }
-  function closeModal(id) { document.getElementById(id).style.display='none'; }
+  window.editHomeText = function(type) { let k = type === 'name' ? 'userName' : 'userBio'; let el = document.getElementById('home-user-' + type); if (el.style.display === 'none') return; let currentVal = el.innerText; let input = document.createElement('input'); input.type = 'text'; input.value = currentVal; input.className = el.className; input.style.fontSize = window.getComputedStyle(el).fontSize; input.style.fontWeight = window.getComputedStyle(el).fontWeight; input.style.color = window.getComputedStyle(el).color; input.style.textAlign = 'center'; input.style.width = '100%'; input.style.border = 'none'; input.style.background = 'rgba(255,255,255,0.5)'; input.style.borderRadius = '5px'; input.style.padding = '5px'; el.style.display = 'none'; el.parentNode.insertBefore(input, el.nextSibling); input.focus(); const save = () => { let newVal = input.value.trim(); if (newVal) { el.innerText = newVal; localStorage.setItem(k, newVal); if (type === 'name') { savedUserName = newVal; updateMeTab(); updateMomentsHeader(); } else if (type === 'bio') { savedUserBio = newVal; } } el.style.display = ''; input.parentNode.removeChild(input); }; input.addEventListener('blur', save); input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { input.blur(); } else if (e.key === 'Escape') { el.style.display = ''; input.parentNode.removeChild(input); } }); }
+  window.showScreen = function(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+  window.goHome = function() { hideMomentCommentBar(); showScreen('screen-home'); }
+  window.closeModal = function(id) { document.getElementById(id).style.display='none'; }
 
-  function openSettings() {
+  window.openSettings = function() {
     document.getElementById('api-url').value = config.url;
     document.getElementById('api-key').value = config.key;
     document.getElementById('api-model').value = config.model;
@@ -1601,7 +1605,7 @@
     showScreen('screen-settings');
   }
   
-  function saveSettings() {
+  window.saveSettings = function() {
       config.url = document.getElementById('api-url').value;
       config.key = document.getElementById('api-key').value;
       config.model = document.getElementById('api-model').value;
@@ -1615,7 +1619,7 @@
       showToast('配置已保存', 'success');
   }
 
-  async function fetchModels() {
+  window.fetchModels = async function() {
       const urlInput = document.getElementById('api-url').value;
       const keyInput = document.getElementById('api-key').value;
       const modelSelect = document.getElementById('api-model');
@@ -1665,23 +1669,23 @@
       }
   }
 
-  function openWeChat() { 
+  window.openWeChat = function() { 
     hideMomentCommentBar(); 
     updateMeTab(); 
     updateMomentsHeader(); 
-    switchWxTab('chat', document.querySelector('.wechat-footer .wx-tab:first-child')); 
+    window.switchWxTab('chat', document.querySelector('.wechat-footer .wx-tab:first-child')); 
     renderContacts(); 
     showScreen('screen-wechat'); 
   }
 
-  function openWorldBooks() { 
+  window.openWorldBooks = function() { 
     if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; } 
     renderGroupBar(); 
     renderWBList(); 
     showScreen('screen-worldbooks'); 
   }
   
-  function openThemes() { 
+  window.openThemes = function() { 
     document.getElementById('theme-fullscreen-toggle').checked = isFullscreen; 
     updateChatBgPreview(); 
     updateWallpaperPreview();
@@ -1691,9 +1695,22 @@
     showScreen('screen-themes'); 
   }
 
-  function toggleFullscreen(checked) { isFullscreen = checked; localStorage.setItem('isFullscreen', checked); if(checked) phoneShell.classList.add('fullscreen-mode'); else phoneShell.classList.remove('fullscreen-mode'); }
+  window.toggleFullscreen = function(checked) { isFullscreen = checked; localStorage.setItem('isFullscreen', checked); if(checked) phoneShell.classList.add('fullscreen-mode'); else phoneShell.classList.remove('fullscreen-mode'); }
 
-  function applyChatBackground() { const chatMessages = document.getElementById('chat-messages'); if (chatBackgroundImage) { chatMessages.style.backgroundImage = `url('${chatBackgroundImage}')`; chatMessages.style.backgroundSize = 'cover'; chatMessages.style.backgroundPosition = 'center'; chatMessages.style.backgroundAttachment = 'fixed'; } else { chatMessages.style.backgroundImage = 'none'; chatMessages.style.backgroundColor = '#f2f2f7'; chatMessages.style.backgroundAttachment = 'scroll'; } }
+  function applyChatBackground() {
+    const chatScreen = document.getElementById('screen-chat');
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatBackgroundImage) {
+        chatScreen.style.backgroundImage = `url('${chatBackgroundImage}')`;
+        chatScreen.style.backgroundSize = 'cover';
+        chatScreen.style.backgroundPosition = 'center';
+        chatScreen.style.backgroundAttachment = 'fixed';
+        chatMessages.style.backgroundColor = 'transparent';
+    } else {
+        chatScreen.style.backgroundImage = 'none';
+        chatMessages.style.backgroundColor = '#f2f2f7';
+    }
+  }
   function updateChatBgPreview() { const preview = document.getElementById('chat-bg-preview'); if (preview) { preview.src = chatBackgroundImage || ''; } }
   
   function applyDesktopWallpaper() { const home=document.getElementById('screen-home'); if(desktopWallpaper){ home.style.backgroundImage=`url('${desktopWallpaper}')`; home.style.backgroundSize='cover'; home.style.backgroundPosition='center'; }else{ home.style.backgroundImage='var(--bg-gradient)'; } }
@@ -1718,7 +1735,7 @@
     });
   }
 
-  function changeIconStyle(style) { appIconStyle=style; localStorage.setItem('appIconStyle', style); applyAppIconStyle(); }
+  window.changeIconStyle = function(style) { appIconStyle=style; localStorage.setItem('appIconStyle', style); applyAppIconStyle(); }
   
   function renderCustomIconEditor() {
     const grid = document.getElementById('custom-icon-grid');
@@ -1744,15 +1761,15 @@
       document.getElementById('custom-icon-upload').click();
   }
 
-  function renderGroupBar() { const bar = document.getElementById('wb-group-bar'); bar.innerHTML = ''; let allPill = document.createElement('div'); allPill.className = `group-pill ${currentGroupView==='全部'?'active':''}`; allPill.innerText='全部'; allPill.onclick=()=>{ currentGroupView='全部'; openWorldBooks(); }; bar.appendChild(allPill); wbGroups.forEach(g => { let p = document.createElement('div'); p.className=`group-pill ${currentGroupView===g?'active':''}`; p.innerText=g; p.onclick=()=>{ currentGroupView=g; openWorldBooks(); }; p.ondblclick=()=>deleteGroup(g); bar.appendChild(p); }); let add = document.createElement('div'); add.className='group-add-btn'; add.innerHTML='<i class="fas fa-plus"></i>'; add.onclick=addNewGroup; bar.appendChild(add); }
+  function renderGroupBar() { const bar = document.getElementById('wb-group-bar'); bar.innerHTML = ''; let allPill = document.createElement('div'); allPill.className = `group-pill ${currentGroupView==='全部'?'active':''}`; allPill.innerText='全部'; allPill.onclick=()=>{ currentGroupView='全部'; window.openWorldBooks(); }; bar.appendChild(allPill); wbGroups.forEach(g => { let p = document.createElement('div'); p.className=`group-pill ${currentGroupView===g?'active':''}`; p.innerText=g; p.onclick=()=>{ currentGroupView=g; window.openWorldBooks(); }; p.ondblclick=()=>window.deleteGroup(g); bar.appendChild(p); }); let add = document.createElement('div'); add.className='group-add-btn'; add.innerHTML='<i class="fas fa-plus"></i>'; add.onclick=window.addNewGroup; bar.appendChild(add); }
   
-  function addNewGroup() {
+  window.addNewGroup = function() {
     document.getElementById('new-wb-group-name-input').value = '';
     document.getElementById('modal-wb-new-group').style.display = 'flex';
     document.getElementById('new-wb-group-name-input').focus();
   }
 
-  function confirmAddNewWBGroup() {
+  window.confirmAddNewWBGroup = function() {
     const input = document.getElementById('new-wb-group-name-input');
     const n = input.value.trim();
     if (n && !wbGroups.includes(n)) {
@@ -1768,23 +1785,23 @@
     }
   }
 
-  function deleteGroup(g) { if(g==='默认') return; if(confirm(`删除分组 ${g}?`)) { wbGroups=wbGroups.filter(x=>x!==g); worldBooks.forEach(b=>{ if(b.group===g) b.group='默认' }); localStorage.setItem('wbGroups',JSON.stringify(wbGroups)); localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); currentGroupView='全部'; openWorldBooks(); } }
-  function renderWBList() { const c = document.getElementById('wb-list-container'); c.innerHTML = ''; let list = currentGroupView==='全部' ? worldBooks : worldBooks.filter(b=>(b.group||'默认')===currentGroupView); list.forEach(wb => { let d = document.createElement('div'); d.className='wb-item'; d.innerHTML = `<div onclick="editWB('${wb.id}')" style="flex:1"><div class="wb-title">${wb.title} <span class="wb-tag">${wb.group||'默认'}</span></div><div class="wb-preview">${wb.content}</div></div><i class="fas fa-trash" style="color:#ff5252;padding:10px" onclick="deleteWB('${wb.id}')"></i>`; c.appendChild(d); }); if (list.length === 0) { c.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无世界书内容，点击右上角+号添加</div>'; } }
-  function showAddWBModal() { document.getElementById('wb-modal-title').innerText="新建世界书"; document.getElementById('wb-id').value=''; document.getElementById('wb-title').value=''; document.getElementById('wb-content').value=''; const s = document.getElementById('wb-group-select'); s.innerHTML=''; wbGroups.forEach(g=>{ let o=document.createElement('option'); o.value=g; o.innerText=g; if(currentGroupView===g) o.selected=true; s.appendChild(o); }); document.getElementById('modal-wb').style.display='flex'; }
-  function editWB(id) { const wb = worldBooks.find(b=>b.id===id); if(!wb) return; document.getElementById('wb-modal-title').innerText="编辑世界书"; document.getElementById('wb-id').value=wb.id; document.getElementById('wb-title').value=wb.title; document.getElementById('wb-content').value=wb.content; const s = document.getElementById('wb-group-select'); s.innerHTML=''; wbGroups.forEach(g=>{ let o=document.createElement('option'); o.value=g; o.innerText=g; if((wb.group||'默认')===g) o.selected=true; s.appendChild(o); }); document.getElementById('modal-wb').style.display='flex'; }
-  function saveWB() { const id=document.getElementById('wb-id').value; const title=document.getElementById('wb-title').value; const content=document.getElementById('wb-content').value; const group=document.getElementById('wb-group-select').value; if(!title) { showToast('标题不能为空', 'info'); return; } if(id) { const i=worldBooks.findIndex(b=>b.id===id); if(i>-1) worldBooks[i]={id,title,content,group}; } else { worldBooks.push({ id:'wb_'+Date.now(), title, content, group }); } localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); closeModal('modal-wb'); openWorldBooks(); }
-  function deleteWB(id) { if(confirm('删除?')) { worldBooks=worldBooks.filter(b=>b.id!==id); localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); openWorldBooks(); } }
+  window.deleteGroup = function(g) { if(g==='默认') return; if(confirm(`删除分组 ${g}?`)) { wbGroups=wbGroups.filter(x=>x!==g); worldBooks.forEach(b=>{ if(b.group===g) b.group='默认' }); localStorage.setItem('wbGroups',JSON.stringify(wbGroups)); localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); currentGroupView='全部'; window.openWorldBooks(); } }
+  function renderWBList() { const c = document.getElementById('wb-list-container'); c.innerHTML = ''; let list = currentGroupView==='全部' ? worldBooks : worldBooks.filter(b=>(b.group||'默认')===currentGroupView); list.forEach(wb => { let d = document.createElement('div'); d.className='wb-item'; d.innerHTML = `<div onclick="window.editWB('${wb.id}')" style="flex:1"><div class="wb-title">${wb.title} <span class="wb-tag">${wb.group||'默认'}</span></div><div class="wb-preview">${wb.content}</div></div><i class="fas fa-trash" style="color:#ff5252;padding:10px" onclick="window.deleteWB('${wb.id}')"></i>`; c.appendChild(d); }); if (list.length === 0) { c.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无世界书内容，点击右上角+号添加</div>'; } }
+  window.showAddWBModal = function() { document.getElementById('wb-modal-title').innerText="新建世界书"; document.getElementById('wb-id').value=''; document.getElementById('wb-title').value=''; document.getElementById('wb-content').value=''; const s = document.getElementById('wb-group-select'); s.innerHTML=''; wbGroups.forEach(g=>{ let o=document.createElement('option'); o.value=g; o.innerText=g; if(currentGroupView===g) o.selected=true; s.appendChild(o); }); document.getElementById('modal-wb').style.display='flex'; }
+  window.editWB = function(id) { const wb = worldBooks.find(b=>b.id===id); if(!wb) return; document.getElementById('wb-modal-title').innerText="编辑世界书"; document.getElementById('wb-id').value=wb.id; document.getElementById('wb-title').value=wb.title; document.getElementById('wb-content').value=wb.content; const s = document.getElementById('wb-group-select'); s.innerHTML=''; wbGroups.forEach(g=>{ let o=document.createElement('option'); o.value=g; o.innerText=g; if((wb.group||'默认')===g) o.selected=true; s.appendChild(o); }); document.getElementById('modal-wb').style.display='flex'; }
+  window.saveWB = function() { const id=document.getElementById('wb-id').value; const title=document.getElementById('wb-title').value; const content=document.getElementById('wb-content').value; const group=document.getElementById('wb-group-select').value; if(!title) { showToast('标题不能为空', 'info'); return; } if(id) { const i=worldBooks.findIndex(b=>b.id===id); if(i>-1) worldBooks[i]={id,title,content,group}; } else { worldBooks.push({ id:'wb_'+Date.now(), title, content, group }); } localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); closeModal('modal-wb'); window.openWorldBooks(); }
+  window.deleteWB = function(id) { if(confirm('删除?')) { worldBooks=worldBooks.filter(b=>b.id!==id); localStorage.setItem('worldBooks',JSON.stringify(worldBooks)); window.openWorldBooks(); } }
 
-  function backToWeChat() { 
+  window.backToWeChat = function() { 
     exitMultiSelectMode(); 
     document.getElementById('action-panel').classList.remove('show');
     showScreen('screen-wechat'); 
     renderContacts(); 
     renderAddressBook(); 
   }
-  function backToChat() { showScreen('screen-chat'); }
+  window.backToChat = function() { showScreen('screen-chat'); }
   
-  function switchWxTab(id, btn) { 
+  window.switchWxTab = function(id, btn) { 
       hideMomentCommentBar();
       document.querySelectorAll('.wechat-tab-content').forEach(e=>e.classList.remove('active')); 
       document.querySelectorAll('.wx-tab').forEach(e=>e.classList.remove('active')); 
@@ -1823,11 +1840,11 @@
     document.getElementById('me-tab-name').innerText = savedUserName;
     document.getElementById('wallet-balance').innerText = walletBalance.toFixed(2);
   }
-  function showUserPersonaModal() {
+  window.showUserPersonaModal = function() {
     document.getElementById('user-persona-input').value = savedUserPersona;
     document.getElementById('modal-user-persona').style.display = 'flex';
   }
-  function saveUserPersona() {
+  window.saveUserPersona = function() {
     savedUserPersona = document.getElementById('user-persona-input').value;
     localStorage.setItem('userPersona', savedUserPersona);
     closeModal('modal-user-persona');
@@ -1835,9 +1852,9 @@
   }
   function updateMomentsHeader() { document.getElementById('moments-avatar').style.backgroundImage=`url('${savedUserAvatar}')`; document.getElementById('moments-name').innerText=savedUserName; document.getElementById('moments-header').style.backgroundImage = savedUserCover ? `url('${savedUserCover}')` : 'none'; }
 
-  function handleInput() { const val = document.getElementById('msg-input').value; if(val.trim().length > 0) { document.getElementById('btn-plus').style.display = 'none'; document.getElementById('btn-send').style.display = 'block'; document.getElementById('input-area').classList.add('typing-mode'); } else { document.getElementById('btn-plus').style.display = 'flex'; document.getElementById('btn-send').style.display = 'none'; document.getElementById('input-area').classList.remove('typing-mode'); } }
+  window.handleInput = function() { const val = document.getElementById('msg-input').value; if(val.trim().length > 0) { document.getElementById('btn-plus').style.display = 'none'; document.getElementById('btn-send').style.display = 'block'; document.getElementById('input-area').classList.add('typing-mode'); } else { document.getElementById('btn-plus').style.display = 'flex'; document.getElementById('btn-send').style.display = 'none'; document.getElementById('input-area').classList.remove('typing-mode'); } }
   
-  function toggleActionPanel(type) { 
+  window.toggleActionPanel = function(type) { 
     const panel = document.getElementById('action-panel'); 
     const contentEmoji = document.getElementById('panel-emoji'); 
     const contentMore = document.getElementById('panel-more'); 
@@ -1849,12 +1866,12 @@
 
       let items = [
         { icon: 'fas fa-image', color:'#333', name:'相册', action: "document.getElementById('img-send-upload').click()" },
-        { icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" }
+        { icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "window.openMemoryModal()" }
       ];
       
       if (char && !char.isGroup) {
-          items.push({ icon: 'fas fa-theater-masks', color:'#ff9800', name:'线下模式', action: "openOfflineModeSettings()" });
-          items.push({ icon: 'fas fa-exchange-alt', color: '#fa9d3b', name: '转账', action: 'sendTransfer()' });
+          items.push({ icon: 'fas fa-theater-masks', color:'#ff9800', name:'线下模式', action: "window.openOfflineModeSettings()" });
+          items.push({ icon: 'fas fa-exchange-alt', color: '#fa9d3b', name: '转账', action: 'window.sendTransfer()' });
       }
       
       items.forEach(item => {
@@ -1883,14 +1900,14 @@
     const allPill = document.createElement('div');
     allPill.className = `emoji-group-pill ${currentEmojiGroup === '全部' ? 'active' : ''}`;
     allPill.innerText = '全部';
-    allPill.onclick = () => switchEmojiGroup('全部');
+    allPill.onclick = () => window.switchEmojiGroup('全部');
     bar.appendChild(allPill);
 
     emojiGroups.forEach(g => {
         const pill = document.createElement('div');
         pill.className = `emoji-group-pill ${currentEmojiGroup === g ? 'active' : ''}`;
         pill.innerText = g;
-        pill.onclick = () => switchEmojiGroup(g);
+        pill.onclick = () => window.switchEmojiGroup(g);
         bar.appendChild(pill);
     });
 
@@ -1898,7 +1915,7 @@
     addGroupBtn.className = 'emoji-group-btn';
     addGroupBtn.innerHTML = '<i class="fas fa-folder-plus"></i>';
     addGroupBtn.title = '添加分组';
-    addGroupBtn.onclick = addNewEmojiGroup;
+    addGroupBtn.onclick = window.addNewEmojiGroup;
     
     const addEmojiBtn = document.createElement('div');
     addEmojiBtn.className = 'emoji-group-btn';
@@ -1916,7 +1933,7 @@
         const diceBtn = document.createElement('div');
         diceBtn.className = 'emoji-item';
         diceBtn.innerHTML = `<i class="fas fa-dice" style="font-size:36px; color:#333;"></i>`;
-        diceBtn.onclick = sendDiceMessage;
+        diceBtn.onclick = window.sendDiceMessage;
         grid.appendChild(diceBtn);
       }
     }
@@ -1926,13 +1943,13 @@
         let d = document.createElement('div');
         d.className = 'emoji-item';
         d.innerHTML = `<img src="${emoji.src}" style="width:40px;height:40px; object-fit:contain;">`;
-        d.onclick = ()=>sendImageMessageOnly(emoji.src);
+        d.onclick = ()=>window.sendImageMessageOnly(emoji.src);
         grid.appendChild(d);
     });
   }
 
-  function switchEmojiGroup(group) { currentEmojiGroup = group; renderEmojiPanel(); }
-  function addNewEmojiGroup() {
+  window.switchEmojiGroup = function(group) { currentEmojiGroup = group; renderEmojiPanel(); }
+  window.addNewEmojiGroup = function() {
     const modal = document.getElementById('modal-new-emoji-group');
     const input = document.getElementById('new-emoji-group-name-input');
     input.value = '';
@@ -1940,14 +1957,14 @@
     input.focus();
   }
 
-  function confirmAddNewEmojiGroup() {
+  window.confirmAddNewEmojiGroup = function() {
     const input = document.getElementById('new-emoji-group-name-input');
     const name = input.value.trim();
     if (name) {
         if (!emojiGroups.includes(name)) {
             emojiGroups.push(name);
             localStorage.setItem('emojiGroups', JSON.stringify(emojiGroups));
-            switchEmojiGroup(name);
+            window.switchEmojiGroup(name);
             showToast(`分组 "${name}" 已创建`, 'success');
             closeModal('modal-new-emoji-group');
         } else {
@@ -1956,7 +1973,7 @@
     }
   }
 
-  function sendMessage() { 
+  window.sendMessage = function() { 
       const input = document.getElementById('msg-input'); 
       const text = input.value; 
       if(!text) return; 
@@ -1984,13 +2001,13 @@
       appendMessageUI(newMsg, true);
 
       input.value = ''; 
-      handleInput(); 
-      cancelReply(); 
+      window.handleInput(); 
+      window.cancelReply(); 
 
       checkMemoryAutoSummary(char); 
   }
   
-  function sendDiceMessage() {
+  window.sendDiceMessage = function() {
     const char = contacts.find(c => c.id === currentChatId);
     if (!char) return;
     const diceValue = Math.floor(Math.random() * 6) + 1;
@@ -2003,7 +2020,7 @@
     appendMessageUI(newMsg, true);
   }
 
-  function sendImageMessageOnly(src) { 
+  window.sendImageMessageOnly = function(src) { 
     const char = contacts.find(c => c.id === currentChatId); 
     if (!char) return;
     const timestamp = Date.now();
@@ -2016,7 +2033,7 @@
     document.getElementById('action-panel').classList.remove('show'); 
   }
 
-  function sendTransfer() {
+  window.sendTransfer = function() {
     const char = contacts.find(c => c.id === currentChatId);
     if (!char) return;
     document.getElementById('transfer-recipient-name').innerText = char.name;
@@ -2026,7 +2043,7 @@
     document.getElementById('action-panel').classList.remove('show');
   }
 
-  function confirmTransfer() {
+  window.confirmTransfer = function() {
     const amountStr = document.getElementById('transfer-amount').value;
     if (!amountStr) return;
 
@@ -2051,7 +2068,7 @@
     showPasswordModal('verify', () => executeTransfer(amount));
   }
   
-  function acceptTransfer(msgId) {
+  window.acceptTransfer = function(msgId) {
       const char = contacts.find(c => c.id === currentChatId);
       if (!char) return;
       const msg = char.history.find(m => m.id === msgId);
@@ -2067,7 +2084,7 @@
       msg.transferStatus = 'accepted';
       char.history.push({ id: 'msg_' + Date.now(), role: 'system', content: `你已收款 ¥${amount.toFixed(2)}` });
       localStorage.setItem('contacts', JSON.stringify(contacts));
-      openChat(currentChatId);
+      window.openChat(currentChatId);
   }
 
   function showContextMenu(e, index) { 
@@ -2087,7 +2104,7 @@
     
     menu.style.left = x + 'px'; menu.style.top = y + 'px'; menu.style.display = 'block'; 
   }
-  function menuAction(action) { 
+  window.menuAction = function(action) { 
     const menu = document.getElementById('msg-context-menu'); menu.style.display = 'none'; if (selectedMsgIndex === null) return; 
     const char = contacts.find(c => c.id === currentChatId); if (!char || !char.history) return; 
     
@@ -2114,8 +2131,8 @@
         if(lastUserMsgIndex !== -1) {
             char.history = char.history.slice(0, lastUserMsgIndex + 1);
             localStorage.setItem('contacts', JSON.stringify(contacts));
-            openChat(currentChatId);
-            requestAIResponse();
+            window.openChat(currentChatId);
+            window.requestAIResponse();
         }
         return;
     }
@@ -2133,7 +2150,7 @@
         return; 
     }
     else if (action === 'multi-select') { enterMultiSelectMode(selectedMsgIndex); return; }
-    localStorage.setItem('contacts', JSON.stringify(contacts)); openChat(currentChatId); 
+    localStorage.setItem('contacts', JSON.stringify(contacts)); window.openChat(currentChatId); 
   }
 
   function showEditMessageModal(index) {
@@ -2148,7 +2165,7 @@
       document.getElementById('edit-message-input').focus();
   }
 
-  function saveEditedMessage() {
+  window.saveEditedMessage = function() {
       if (editingMessageIndex === null) return;
       
       const char = contacts.find(c => c.id === currentChatId);
@@ -2159,7 +2176,7 @@
       
       localStorage.setItem('contacts', JSON.stringify(contacts));
       closeModal('modal-edit-message');
-      openChat(currentChatId);
+      window.openChat(currentChatId);
       editingMessageIndex = null;
   }
 
@@ -2176,7 +2193,7 @@
       document.getElementById('quote-content-preview').innerText = `${name}: ${content}`;
       document.getElementById('msg-input').focus();
   }
-  function cancelReply() {
+  window.cancelReply = function() {
       replyingToMsg = null;
       document.getElementById('quote-bar').style.display = 'none';
   }
@@ -2197,11 +2214,11 @@
     return new Date(timestamp).toLocaleDateString();
   }
 
-  function openChat(id) { 
+  window.openChat = function(id) { 
     hideMomentCommentBar();
     exitMultiSelectMode();
     document.getElementById('action-panel').classList.remove('show');
-    cancelReply();
+    window.cancelReply();
     currentChatId = id; 
     const u = contacts.find(c => c.id == id); 
     if (!u) return; 
@@ -2239,7 +2256,7 @@
           lastDisplayedTimestamp = u.history[u.history.length-1].timestamp;
         }
     } 
-    showScreen('screen-chat'); handleInput(); setTimeout(() => { c.scrollTop = c.scrollHeight; }, 100); 
+    showScreen('screen-chat'); window.handleInput(); setTimeout(() => { c.scrollTop = c.scrollHeight; }, 100); 
   }
 
   function createMessageElement(msg, isSelf, isImage, index) { 
@@ -2268,7 +2285,7 @@
     let bubbleHtml = '';
     
     if (isImage) {
-        bubbleHtml = `<img src="${content}" class="msg-img" onclick="showLightbox('${content}')">`;
+        bubbleHtml = `<img src="${content}" class="msg-img" onclick="window.showLightbox('${content}')">`;
     } else if (content.startsWith('[DICE:')) {
         const value = content.match(/\[DICE:(\d)\]/)[1];
         const diceIcons = ['one', 'two', 'three', 'four', 'five', 'six'];
@@ -2293,7 +2310,7 @@
             switch(transferStatus) {
                 case 'accepted': statusText = '已收款'; iconClass = 'fas fa-check'; break;
                 case 'returned': statusText = '已被退还'; iconClass = 'fas fa-undo'; break;
-                default: statusText = '转账给你'; onClick = `onclick="acceptTransfer('${msgId}')"`; iconClass = 'fas fa-exchange-alt'; break;
+                default: statusText = '转账给你'; onClick = `onclick="window.acceptTransfer('${msgId}')"`; iconClass = 'fas fa-exchange-alt'; break;
             }
         }
         bubbleHtml = `
@@ -2384,6 +2401,25 @@
       c.scrollTop = c.scrollHeight; 
   }
 
+  async function fetchWeatherByCoords(latitude, longitude) {
+    try {
+        const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`);
+        if(!weatherResponse.ok) { console.error('Weather API error'); return null; }
+        const weatherData = await weatherResponse.json();
+        
+        if (!weatherData.current) { console.error('No current weather data'); return null; }
+
+        const temp = Math.round(weatherData.current.temperature_2m);
+        const weatherCode = weatherData.current.weather_code;
+        const weatherDescriptions = { 0: '晴朗', 1: '少云', 2: '多云', 3: '阴', 45: '雾', 48: '雾凇', 51: '小毛毛雨', 53: '毛毛雨', 55: '大毛毛雨', 56: '冻毛毛雨', 57: '冻大毛毛雨', 61: '小雨', 63: '中雨', 65: '大雨', 66: '冻雨', 67: '冻大雨', 71: '小雪', 73: '中雪', 75: '大雪', 77: '米雪', 80: '小阵雨', 81: '中阵雨', 82: '大阵雨', 85: '阵雪', 86: '大阵雪', 95: '雷暴', 96: '雷暴伴有冰雹', 99: '雷暴伴有冰雹' };
+        const description = weatherDescriptions[weatherCode] ?? '未知天气';
+        return `${description} ${temp}°C`;
+    } catch (e) {
+        console.error("Weather fetch by coords failed:", e);
+        return null;
+    }
+  }
+
   async function fetchRealWeather(city) {
     if(!city) return null;
     try {
@@ -2393,34 +2429,7 @@
         if(!geoData.results || geoData.results.length === 0) { console.error('City not found'); return null; }
         
         const { latitude, longitude } = geoData.results[0];
-
-        const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`);
-        if(!weatherResponse.ok) { console.error('Weather API error'); return null; }
-        const weatherData = await weatherResponse.json();
-        
-        if (!weatherData.current) { console.error('No current weather data'); return null; }
-
-        const temp = Math.round(weatherData.current.temperature_2m);
-        const weatherCode = weatherData.current.weather_code;
-
-        const weatherDescriptions = {
-            0: '晴朗', 1: '少云', 2: '多云', 3: '阴',
-            45: '雾', 48: '雾凇',
-            51: '小毛毛雨', 53: '毛毛雨', 55: '大毛毛雨',
-            56: '冻毛毛雨', 57: '冻大毛毛雨',
-            61: '小雨', 63: '中雨', 65: '大雨',
-            66: '冻雨', 67: '冻大雨',
-            71: '小雪', 73: '中雪', 75: '大雪',
-            77: '米雪',
-            80: '小阵雨', 81: '中阵雨', 82: '大阵雨',
-            85: '阵雪', 86: '大阵雪',
-            95: '雷暴',
-            96: '雷暴伴有冰雹', 99: '雷暴伴有冰雹'
-        };
-        
-        const description = weatherDescriptions[weatherCode] ?? '未知天气';
-
-        return `${description} ${temp}°C`;
+        return await fetchWeatherByCoords(latitude, longitude);
 
     } catch(e) { 
         console.error("Weather fetch failed:", e);
@@ -2428,19 +2437,25 @@
     return null;
   }
   
-  async function checkWeatherLocation(city) {
+  window.checkWeatherLocation = async function(city) {
       if(!city) return;
+      const char = contacts.find(c => c.id === currentChatId);
+      if(!char) return;
+
+      char.latitude = null;
+      char.longitude = null;
+
       const statusDiv = document.getElementById('weather-status');
-      statusDiv.innerText = "定位中...";
+      statusDiv.innerText = "正在验证城市...";
       const w = await fetchRealWeather(city);
       if(w) {
           statusDiv.innerText = `✅ 已定位到: ${city} ${w.trim()}`;
       } else {
-          statusDiv.innerText = "⚠️ 定位失败，将使用城市名模拟";
+          statusDiv.innerText = "⚠️ 城市验证失败";
       }
   }
 
-  function openMemoryModal() {
+  window.openMemoryModal = function() {
       const char = contacts.find(c => c.id === currentChatId);
       if(!char) return;
       if(!char.memory) char.memory = { auto: false, limit: 20, summary: "" };
@@ -2453,7 +2468,7 @@
       document.getElementById('action-panel').classList.remove('show');
   }
 
-  function saveMemorySettings() {
+  window.saveMemorySettings = function() {
       const char = contacts.find(c => c.id === currentChatId);
       if(!char) return;
       char.memory.auto = document.getElementById('mem-auto-toggle').checked;
@@ -2482,13 +2497,13 @@
                  char.memory.summary = newSummary;
                  char.history.push({ id: 'msg_' + Date.now(), role: "system", content: "✨ 记忆已自动归档" });
                  localStorage.setItem('contacts', JSON.stringify(contacts));
-                 if(currentChatId === char.id) openChat(char.id); 
+                 if(currentChatId === char.id) window.openChat(char.id); 
              }
           } catch(e) { console.error("Auto summary failed", e); }
       }
   }
 
-  async function requestAIResponse() {
+  window.requestAIResponse = async function() {
     const char = contacts.find(c => c.id === currentChatId);
     if (!char) return;
     const originalTitle = char.name;
@@ -2565,10 +2580,16 @@ Now, based on the following chat history, generate the next response(s).`;
         
         if(char.syncReality) {
             if(char.useRealTime) systemPrompt += `\n[System Time: ${new Date().toLocaleString()}]`;
-            if(char.useRealWeather && char.city) {
-                const weather = await fetchRealWeather(char.city);
-                if(weather) systemPrompt += `\n[Real Weather in ${char.city}: ${weather.trim()}]`;
-                else systemPrompt += `\n[User Location: ${char.city}]`;
+            if(char.useRealWeather) {
+                let weather = null;
+                if(char.latitude && char.longitude) {
+                    weather = await fetchWeatherByCoords(char.latitude, char.longitude);
+                    if(weather) systemPrompt += `\n[Real Weather at your location: ${weather.trim()}]`;
+                } else if (char.city) {
+                    weather = await fetchRealWeather(char.city);
+                    if(weather) systemPrompt += `\n[Real Weather in ${char.city}: ${weather.trim()}]`;
+                    else systemPrompt += `\n[User Location: ${char.city}]`;
+                }
             }
         }
 
@@ -2805,15 +2826,15 @@ Now, based on the following chat history, generate the next response(s).`;
 
       if (needsRerender) {
           localStorage.setItem('contacts', JSON.stringify(contacts));
-          openChat(char.id);
+          window.openChat(char.id);
       }
       return processedReply;
   }
 
-  function toggleMomentsMenu() { const menu = document.getElementById('moments-menu'); menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'; }
-  function toggleAddMenu() { const menu = document.getElementById('add-menu'); menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'; }
+  window.toggleMomentsMenu = function() { const menu = document.getElementById('moments-menu'); menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'; }
+  window.toggleAddMenu = function() { const menu = document.getElementById('add-menu'); menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'; }
   
-  function showPostMomentModal() { 
+  window.showPostMomentModal = function() { 
       toggleMomentsMenu(); 
       tempMomentImg = ""; 
       document.getElementById('moment-img-status').innerText="未选择"; 
@@ -2834,7 +2855,7 @@ Now, based on the following chat history, generate the next response(s).`;
       document.getElementById('modal-post-moment').style.display='flex'; 
   }
   
-  function postUserMoment() {
+  window.postUserMoment = function() {
     const txt = document.getElementById('moment-text').value; 
     if(!txt && !tempMomentImg) { showToast("写点什么吧", "info"); return; }
     const visibility = document.getElementById('moment-visibility').value;
@@ -2884,7 +2905,7 @@ Now, based on the following chat history, generate the next response(s).`;
     contacts.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
     contacts.forEach(user => { 
         let div = document.createElement('div'); div.className = `contact-item ${user.isPinned ? 'pinned' : ''}`;
-        div.onclick = () => openChat(user.id);
+        div.onclick = () => window.openChat(user.id);
         div.addEventListener('contextmenu', (e) => showChatListMenu(e, user.id));
         div.addEventListener('touchstart', (e) => { longPressTimer = setTimeout(() => showChatListMenu(e, user.id), 700); });
         div.addEventListener('touchend', () => clearTimeout(longPressTimer));
@@ -2925,7 +2946,7 @@ Now, based on the following chat history, generate the next response(s).`;
     menu.style.display = 'block';
   }
 
-  function menuActionChatList(action) {
+  window.menuActionChatList = function(action) {
       const menu = document.getElementById('chat-list-context-menu');
       menu.style.display = 'none';
       if (!selectedChatListId) return;
@@ -2974,8 +2995,8 @@ Now, based on the following chat history, generate the next response(s).`;
             commentsContainer.appendChild(comDiv);
         });
 
-        let deleteBtn = (m.authorId === 'user') ? `<span class="m-del-btn" onclick="deleteMoment('${m.id}')">删除</span>` : '';
-        let imgHtml = m.image ? `<img src="${m.image}" class="m-img" onclick="showLightbox('${m.image}')">` : '';
+        let deleteBtn = (m.authorId === 'user') ? `<span class="m-del-btn" onclick="window.deleteMoment('${m.id}')">删除</span>` : '';
+        let imgHtml = m.image ? `<img src="${m.image}" class="m-img" onclick="window.showLightbox('${m.image}')">` : '';
         let visibilityIcon = "";
         
         if(m.authorId === 'user' && m.visibleTo !== 'all') { visibilityIcon = `<span style="font-size:12px;color:#999;margin-left:5px;"><i class="fas fa-user-friends"></i> ${m.visibleTo}</span>`; }
@@ -2983,21 +3004,21 @@ Now, based on the following chat history, generate the next response(s).`;
         const timeStr = formatTimeAgo(m.timestamp);
 
         let div = document.createElement('div'); div.className = 'moment-item';
-        div.innerHTML = `<div class="m-avatar" style="background-image: url('${authorAvatar}')"></div><div class="m-content"><div class="m-name">${authorName}</div><div class="m-text">${m.content}</div>${imgHtml}<div class="m-meta"><span>${timeStr} ${deleteBtn}</span><div style="display:flex;gap:10px;"><span class="m-actions-btn" onclick="likeMoment('${m.id}')"><i class="far fa-heart"></i></span><span class="m-actions-btn" onclick="commentMoment('${m.id}')"><i class="far fa-comment"></i></span></div></div>${visibilityIcon}<div class="m-comments-area" style="display:${(likeHtml||commentsContainer.innerHTML)?'block':'none'}">${likeHtml}${commentsContainer.innerHTML}</div></div>`;
+        div.innerHTML = `<div class="m-avatar" style="background-image: url('${authorAvatar}')"></div><div class="m-content"><div class="m-name">${authorName}</div><div class="m-text">${m.content}</div>${imgHtml}<div class="m-meta"><span>${timeStr} ${deleteBtn}</span><div style="display:flex;gap:10px;"><span class="m-actions-btn" onclick="window.likeMoment('${m.id}')"><i class="far fa-heart"></i></span><span class="m-actions-btn" onclick="window.commentMoment('${m.id}')"><i class="far fa-comment"></i></span></div></div>${visibilityIcon}<div class="m-comments-area" style="display:${(likeHtml||commentsContainer.innerHTML)?'block':'none'}">${likeHtml}${commentsContainer.innerHTML}</div></div>`;
         container.appendChild(div);
     });
   }
   
   function saveMoments() { localStorage.setItem('moments', JSON.stringify(moments)); }
-  function deleteMoment(mid) { 
+  window.deleteMoment = function(mid) { 
     moments = moments.filter(m => m.id !== mid); 
     saveMoments(); 
     renderMoments(); 
   }
 
-  function likeMoment(mid) { const m = moments.find(x => x.id === mid); if(!m) return; if(m.likes.includes('user')) { m.likes = m.likes.filter(u => u !== 'user'); } else { m.likes.push('user'); } saveMoments(); renderMoments(); }
+  window.likeMoment = function(mid) { const m = moments.find(x => x.id === mid); if(!m) return; if(m.likes.includes('user')) { m.likes = m.likes.filter(u => u !== 'user'); } else { m.likes.push('user'); } saveMoments(); renderMoments(); }
   
-  function sendMomentComment() {
+  window.sendMomentComment = function() {
       const bar = document.getElementById('moment-comment-bar');
       const mid = bar.dataset.momentId;
       const input = document.getElementById('moment-comment-input');
@@ -3078,7 +3099,7 @@ Now, based on the following chat history, generate the next response(s).`;
     menu.style.display = 'block';
   }
 
-  function menuActionComment(action) {
+  window.menuActionComment = function(action) {
     const menu = document.getElementById('comment-context-menu');
     const momentId = menu.dataset.momentId;
     const commentIndex = parseInt(menu.dataset.commentIndex, 10);
@@ -3129,7 +3150,7 @@ Now, based on the following chat history, generate the next response(s).`;
       input.setSelectionRange(commentText.length, commentText.length);
   }
 
-  function commentMoment(mid) {
+  window.commentMoment = function(mid) {
       const bar = document.getElementById('moment-comment-bar');
       delete bar.dataset.replyToName;
       delete bar.dataset.replyToId;
@@ -3171,7 +3192,7 @@ Now, based on the following chat history, generate the next response(s).`;
       }
   }
   
-  function showLightbox(src) {
+  window.showLightbox = function(src) {
       const lightbox = document.getElementById('image-lightbox');
       if (lightbox) {
           lightbox.querySelector('img').src = src;
@@ -3179,7 +3200,7 @@ Now, based on the following chat history, generate the next response(s).`;
       }
   }
 
-  function hideLightbox() {
+  window.hideLightbox = function() {
       const lightbox = document.getElementById('image-lightbox');
       if (lightbox) {
           lightbox.style.display = 'none';
@@ -3256,7 +3277,7 @@ Now, based on the following chat history, generate the next response(s).`;
         grouped[groupName].forEach(contact => {
             const item = document.createElement('div');
             item.className = 'addr-item';
-            item.onclick = () => openChat(contact.id);
+            item.onclick = () => window.openChat(contact.id);
             item.innerHTML = `
                 <div class="addr-avatar" style="background-image: url('${contact.avatar}')"></div>
                 <div class="addr-name">${contact.realname || contact.name}</div>
@@ -3267,18 +3288,18 @@ Now, based on the following chat history, generate the next response(s).`;
     container.appendChild(fragment);
   }
 
-  function showWalletModal() {
+  window.showWalletModal = function() {
     document.getElementById('modal-wallet-balance').innerText = walletBalance.toFixed(2);
     document.getElementById('modal-wallet').style.display = 'flex';
   }
 
-  function openTopUpModal() {
+  window.openTopUpModal = function() {
     closeModal('modal-wallet');
     document.getElementById('topup-amount').value = '';
     document.getElementById('modal-wallet-topup').style.display = 'flex';
   }
 
-  function confirmTopUp() {
+  window.confirmTopUp = function() {
     const amountInput = document.getElementById('topup-amount');
     const amount = parseFloat(amountInput.value);
     if (isNaN(amount) || amount <= 0) {
@@ -3292,7 +3313,7 @@ Now, based on the following chat history, generate the next response(s).`;
     showToast(`充值成功 ¥${amount.toFixed(2)}`, 'success');
   }
 
-  function openPasswordSetModal() {
+  window.openPasswordSetModal = function() {
     closeModal('modal-wallet');
     showPasswordModal('set', (newPassword) => {
         walletPassword = newPassword;
@@ -3301,7 +3322,7 @@ Now, based on the following chat history, generate the next response(s).`;
     });
   }
 
-  function sendGroupRedPacket() {
+  window.sendGroupRedPacket = function() {
     showToast('群发红包功能待开发', 'info');
     document.getElementById('action-panel').classList.remove('show');
   }
@@ -3318,7 +3339,7 @@ Now, based on the following chat history, generate the next response(s).`;
         char.history.push(transferMsg);
         char.history.push({ id: 'sys_' + Date.now(), role: "system", content: `你发起了转账，等待对方确认` });
         localStorage.setItem('contacts', JSON.stringify(contacts));
-        openChat(currentChatId);
+        window.openChat(currentChatId);
     }
     showToast(`转账成功 ¥${amount.toFixed(2)}`, 'success');
   }
@@ -3340,7 +3361,7 @@ Now, based on the following chat history, generate the next response(s).`;
     document.getElementById('modal-password-input').style.display = 'flex';
   }
 
-  function closePasswordModal() {
+  window.closePasswordModal = function() {
     document.getElementById('modal-password-input').style.display = 'none';
     resetPasswordDots();
   }
@@ -3373,7 +3394,7 @@ Now, based on the following chat history, generate the next response(s).`;
     }, 500);
   }
 
-  async function handleNumpadClick(num) {
+  window.handleNumpadClick = async function(num) {
     if (currentPasswordAttempt.length >= 6) return;
     currentPasswordAttempt += num;
     updatePasswordDots();
@@ -3406,7 +3427,7 @@ Now, based on the following chat history, generate the next response(s).`;
     }
   }
 
-  function handleNumpadBackspace() {
+  window.handleNumpadBackspace = function() {
     if (currentPasswordAttempt.length > 0) {
         currentPasswordAttempt = currentPasswordAttempt.slice(0, -1);
         updatePasswordDots();
@@ -3445,7 +3466,7 @@ Now, based on the following chat history, generate the next response(s).`;
     }
   }
   
-  function deleteSelectedMessages() {
+  window.deleteSelectedMessages = function() {
     if (selectedMessageIndices.length === 0) return;
 
     const char = contacts.find(c => c.id === currentChatId);
@@ -3458,10 +3479,10 @@ Now, based on the following chat history, generate the next response(s).`;
 
     localStorage.setItem('contacts', JSON.stringify(contacts));
     exitMultiSelectMode();
-    openChat(currentChatId);
+    window.openChat(currentChatId);
   }
 
-  function showGroupManagerModal() {
+  window.showGroupManagerModal = function() {
     document.getElementById('new-addr-group-name').value = '';
     
     const targetGroupSelect = document.getElementById('target-addr-group');
@@ -3483,7 +3504,7 @@ Now, based on the following chat history, generate the next response(s).`;
     document.getElementById('modal-group-manager').style.display = 'flex';
   }
 
-  function showAddContactModal() {
+  window.showAddContactModal = function() {
     document.getElementById('new-name').value = '';
     document.getElementById('new-prompt').value = '';
     tempNewCharAvatar = '';
@@ -3494,7 +3515,7 @@ Now, based on the following chat history, generate the next response(s).`;
     document.getElementById('add-menu').style.display = 'none';
   }
 
-  function addNewChar() {
+  window.addNewChar = function() {
       const name = document.getElementById('new-name').value.trim();
       const prompt = document.getElementById('new-prompt').value.trim();
       if (!name || !prompt) {
@@ -3514,6 +3535,8 @@ Now, based on the following chat history, generate the next response(s).`;
           useRealTime: false,
           useRealWeather: false,
           city: '',
+          latitude: null,
+          longitude: null,
           group: '新朋友',
           isGroup: false,
           isPinned: false,
@@ -3530,7 +3553,7 @@ Now, based on the following chat history, generate the next response(s).`;
       showToast('添加成功', 'success');
   }
 
-  function showCreateGroupModal() {
+  window.showCreateGroupModal = function() {
     const memberList = document.getElementById('group-member-select-list');
     const availableMembers = contacts.filter(c => !c.isGroup);
     
@@ -3549,7 +3572,7 @@ Now, based on the following chat history, generate the next response(s).`;
     document.getElementById('add-menu').style.display = 'none';
   }
 
-  function createNewGroupChat() {
+  window.createNewGroupChat = function() {
     const selectedCheckboxes = Array.from(document.querySelectorAll('#group-member-select-list input[type="checkbox"]:checked'));
     const selectedMemberIds = selectedCheckboxes.map(cb => parseInt(cb.value));
 
@@ -3582,10 +3605,10 @@ Now, based on the following chat history, generate the next response(s).`;
 
     closeModal('modal-create-group');
     renderContacts();
-    openChat(newGroup.id);
+    window.openChat(newGroup.id);
   }
 
-  function addNewAddrGroup() {
+  window.addNewAddrGroup = function() {
     const newGroupName = document.getElementById('new-addr-group-name').value.trim();
     if (newGroupName) {
         const allGroups = [...new Set(contacts.filter(c => !c.isGroup && c.group).map(c => c.group))];
@@ -3603,7 +3626,7 @@ Now, based on the following chat history, generate the next response(s).`;
     }
   }
 
-  function saveAddrGroupMove() {
+  window.saveAddrGroupMove = function() {
     const targetGroup = document.getElementById('target-addr-group').value;
     const selectedChars = Array.from(document.querySelectorAll('#addr-move-list input[type="checkbox"]:checked')).map(cb => parseInt(cb.value));
 
@@ -3625,7 +3648,7 @@ Now, based on the following chat history, generate the next response(s).`;
     showToast(`已移动 ${selectedChars.length} 个角色至 "${targetGroup}"`, 'success');
   }
 
-  function openCharDetailSettings() {
+  window.openCharDetailSettings = function() {
     const char = contacts.find(c => c.id === currentChatId);
     if (!char) return;
 
@@ -3656,18 +3679,34 @@ Now, based on the following chat history, generate the next response(s).`;
         });
 
         document.getElementById('setting-char-sync-reality').checked = char.syncReality || false;
-        toggleRealitySettings(char.syncReality || false);
-        document.getElementById('setting-char-real-time').checked = char.useRealTime || false;
-        document.getElementById('setting-char-real-weather').checked = char.useRealWeather || false;
-        toggleCityInput(char.useRealWeather || false);
+        window.toggleRealitySettings(char.syncReality || false);
+        
+        const weatherSwitch = document.getElementById('setting-char-real-weather');
+        weatherSwitch.checked = char.useRealWeather || false;
+        const cityInputDiv = document.getElementById('city-input-div');
+        const weatherStatus = document.getElementById('weather-status');
+
+        if (char.useRealWeather) {
+            if (char.latitude && char.longitude) {
+                cityInputDiv.style.display = 'none';
+                weatherStatus.innerText = '✅ 自动定位成功';
+            } else {
+                cityInputDiv.style.display = 'block';
+                weatherStatus.innerText = '⚠️ 定位失败, 请手动输入城市';
+            }
+        } else {
+            cityInputDiv.style.display = 'none';
+            weatherStatus.innerText = '';
+        }
         document.getElementById('setting-char-city').value = char.city || '';
-        document.getElementById('weather-status').innerText = '';
+        
+        document.getElementById('setting-char-real-time').checked = char.useRealTime || false;
     }
     
     showScreen('screen-char-settings');
   }
 
-  function saveCharDetailSettings() {
+  window.saveCharDetailSettings = function() {
     const charIndex = contacts.findIndex(c => c.id === currentChatId);
     if (charIndex === -1) return;
 
@@ -3681,527 +3720,403 @@ Now, based on the following chat history, generate the next response(s).`;
         char.realname = document.getElementById('setting-char-realname').value;
         char.prompt = document.getElementById('setting-char-prompt').value;
         char.hideAvatar = document.getElementById('setting-char-hide-avatar').value;
-        char.worldBookId = document.getElementById('setting-char-wb').value;
+        char.worldBookId = document.getElementById('setting-char-wb').value || null;
         char.syncReality = document.getElementById('setting-char-sync-reality').checked;
         char.useRealTime = document.getElementById('setting-char-real-time').checked;
         char.useRealWeather = document.getElementById('setting-char-real-weather').checked;
         char.city = document.getElementById('setting-char-city').value;
     }
-    
+
     localStorage.setItem('contacts', JSON.stringify(contacts));
     showToast('保存成功', 'success');
     updateChatTitleIndicator();
     backToChat();
   }
 
-  function deleteCurrentChar() {
+  window.deleteCurrentChar = function() {
     const char = contacts.find(c => c.id === currentChatId);
-    if (!char) return;
-    const action = char.isGroup ? '解散该群聊' : '删除该好友';
-    const message = `确定要${action} “${char.name}” 吗？所有聊天记录将被清除。`;
-
-    document.getElementById('confirm-delete-message').innerText = message;
+    if(!char) return;
+    const type = char.isGroup ? '群聊' : '好友';
+    document.getElementById('confirm-delete-message').innerText = `确定要删除此${type}吗？所有聊天记录都将被清除且无法恢复。`;
     document.getElementById('modal-confirm-delete').style.display = 'flex';
   }
-
-  function confirmDeleteChar() {
+  
+  window.confirmDeleteChar = function() {
     contacts = contacts.filter(c => c.id !== currentChatId);
-    contacts.forEach(group => {
-        if (group.isGroup && group.members) {
-            group.members = group.members.filter(mId => mId !== currentChatId);
-        }
-    });
     localStorage.setItem('contacts', JSON.stringify(contacts));
     closeModal('modal-confirm-delete');
-    showToast('已删除', 'success');
+    showToast('删除成功', 'success');
     backToWeChat();
   }
-
-  function toggleRealitySettings(checked) {
-    document.getElementById('reality-options').style.display = checked ? 'block' : 'none';
+  
+  window.toggleRealitySettings = function(checked) {
+      document.getElementById('reality-options').style.display = checked ? 'block' : 'none';
   }
 
-  function toggleCityInput(checked) {
-    document.getElementById('city-input-div').style.display = checked ? 'block' : 'none';
-    if (!checked) document.getElementById('weather-status').innerText = '';
-  }
+  window.toggleCityInput = function(checked) {
+      const char = contacts.find(c => c.id === currentChatId);
+      if (!char) return;
 
-  function renderAutoMomentCharList() {
-    const autoList = document.getElementById('auto-moment-char-list');
-    autoList.innerHTML = '';
-    contacts.filter(c => !c.isGroup).forEach(char => {
-        const checked = char.autoMoment ? 'checked' : '';
-        autoList.innerHTML += `
-            <div class="select-item">
-                <input type="checkbox" id="auto-moment-${char.id}" value="${char.id}" ${checked} onchange="updateAutoMomentChar(this.value, this.checked)">
-                <label for="auto-moment-${char.id}" style="display:flex;align-items:center;width:100%;">
-                    <div class="select-avatar" style="background-image:url('${char.avatar}')"></div>
-                    <span>${char.name}</span>
-                </label>
-            </div>`;
-    });
-  }
+      const cityInputDiv = document.getElementById('city-input-div');
+      const weatherStatus = document.getElementById('weather-status');
 
-  function showCharMomentsSettings() {
-    if(document.getElementById('moments-menu').style.display === 'block') {
-      toggleMomentsMenu();
-    }
-    
-    const charSelect = document.getElementById('moment-char-select');
-    charSelect.innerHTML = '';
-    contacts.filter(c => !c.isGroup).forEach(char => {
-        let opt = document.createElement('option');
-        opt.value = char.id;
-        opt.innerText = char.name;
-        charSelect.appendChild(opt);
-    });
-
-    const autoToggle = document.getElementById('moment-auto-toggle');
-    autoToggle.checked = autoMomentEnabled;
-    
-    const autoListContainer = document.getElementById('auto-moment-char-list-container');
-    autoListContainer.style.display = autoMomentEnabled ? 'block' : 'none';
-    
-    if (autoMomentEnabled) {
-        renderAutoMomentCharList();
-    }
-
-    document.getElementById('modal-char-moment-settings').style.display = 'flex';
-  }
-
-  function toggleAutoMoment(checked) {
-    autoMomentEnabled = checked;
-    localStorage.setItem('autoMomentEnabled', autoMomentEnabled);
-    const autoListContainer = document.getElementById('auto-moment-char-list-container');
-    autoListContainer.style.display = checked ? 'block' : 'none';
-    if(checked) {
-      renderAutoMomentCharList();
-    }
-    startBackgroundMomentGenerator();
-  }
-
-  function updateAutoMomentChar(charId, isEnabled) {
-    const char = contacts.find(c => c.id == charId);
-    if(char) {
-        char.autoMoment = isEnabled;
-        localStorage.setItem('contacts', JSON.stringify(contacts));
-        startBackgroundMomentGenerator();
-    }
-  }
-
-  async function generateAIMoment() {
-    const charId = document.getElementById('moment-char-select').value;
-    if (!charId) return;
-    const char = contacts.find(c => c.id == charId);
-    if (!char) return;
-    
-    showToast(`${char.name} 正在思考...`, 'info', 3000);
-    closeModal('modal-char-moment-settings');
-    
-    await generateAIMomentInternal(char);
+      if (checked) {
+          weatherStatus.innerText = '正在获取定位...';
+          navigator.geolocation.getCurrentPosition(
+              async (position) => {
+                  char.latitude = position.coords.latitude;
+                  char.longitude = position.coords.longitude;
+                  const weather = await fetchWeatherByCoords(char.latitude, char.longitude);
+                  weatherStatus.innerText = weather ? `✅ 定位成功: ${weather}` : '✅ 定位成功, 天气获取失败';
+                  cityInputDiv.style.display = 'none';
+              },
+              (error) => {
+                  console.warn("Geolocation error:", error.message);
+                  weatherStatus.innerText = '⚠️ 定位失败, 请手动输入城市';
+                  cityInputDiv.style.display = 'block';
+                  char.latitude = null;
+                  char.longitude = null;
+              },
+              { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+          );
+      } else {
+          cityInputDiv.style.display = 'none';
+          weatherStatus.innerText = '';
+          char.latitude = null;
+          char.longitude = null;
+      }
   }
 
   async function generateAIMomentInternal(char) {
-      if (!config.key) {
-          console.error("No API key for moment generation.");
+      const prompt = `System: You are ${char.name}. Your persona is "${char.prompt}". Task: Write a short, interesting social media moment (like on WeChat Moments). Keep it under 50 words. Do NOT include your name.`;
+      try {
+          const res = await fetch(`${getCleanBaseUrl(config.url)}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` }, body: JSON.stringify({ model: config.model, messages: [{ role: 'user', content: prompt }], temperature: 1.2 }) });
+          if (!res.ok) return false;
+          const data = await res.json();
+          const content = data.choices[0].message.content.replace(/^["']|["']$/g, '');
+          moments.unshift({ id: 'm_' + Date.now(), authorId: char.id, content: content, image: "", likes: [], comments: [], timestamp: Date.now(), visibleTo: 'all' });
+          saveMoments();
+          showNotification(char, `发了一条朋友圈: ${content.substring(0,20)}...`);
+          return true;
+      } catch (e) {
+          console.error("AI Moment Generation Error:", e);
           return false;
       }
-  
-      const recentHistory = char.history ? char.history.slice(-10).map(m => {
-          if (m.role === 'user') return `${savedUserName}: ${m.content}`;
-          return `${char.name}: ${m.content}`;
-      }).join('\n') : "No recent conversation.";
-  
-      const prompt = `System: You are ${char.name}. Your persona is "${char.prompt}".
-      The current time is ${new Date().toLocaleString('zh-CN')}. Use this to inform the context of your post (e.g., good morning, late night thoughts, etc.).
-  
-      Here is the recent chat history with ${savedUserName} for context:
-      ${recentHistory}
-  
-      Task: Based on your persona, the current time, AND the recent conversation, generate a short, realistic, **text-only** social media post (like WeChat Moments).
-      **DO NOT include any images or image descriptions in your post (do not use "[IMAGE: ...]").**
-      Keep it concise and natural. Do not add your name to the post. Just provide the content.`;
-  
-      try {
-          const res = await fetch(`${getCleanBaseUrl(config.url)}/chat/completions`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
-              body: JSON.stringify({ model: config.model, messages: [{ role: 'user', content: prompt }], temperature: 1.2 })
-          });
-          if (!res.ok) return false;
-  
-          const data = await res.json();
-          let content = data.choices[0].message.content.replace(/^["']|["']$/g, '');
-          content = content.replace(/\[IMAGE:.*?\]/g, '').trim();
-  
-          if (!content) {
-              console.log("AI generated an empty moment post, skipping.");
-              return false;
-          }
-  
-          const newMoment = {
-              id: 'm_' + Date.now(),
-              authorId: char.id,
-              content: content,
-              image: '', // Image is always empty now
-              likes: [],
-              comments: [],
-              timestamp: Date.now(),
-              visibleTo: 'all'
-          };
-          moments.unshift(newMoment);
-          saveMoments();
-  
+  }
+
+  window.generateAIMoment = async function() {
+      const charId = document.getElementById('moment-char-select').value;
+      if (!charId) { showToast('请选择一个角色', 'info'); return; }
+      const char = contacts.find(c => c.id == charId);
+      if (!char) return;
+
+      showToast(`正在为 ${char.name} 生成朋友圈...`, 'info');
+      const success = await generateAIMomentInternal(char);
+      if (success) {
+          showToast('生成成功！', 'success');
+          closeModal('modal-char-moment-settings');
           if (document.getElementById('tab-moments').classList.contains('active')) {
               renderMoments();
           }
-          showToast(`${char.name} 发布了新动态`, 'success');
-          return true; // Success
+      } else {
+          showToast('生成失败，请检查API设置', 'error');
+      }
+  }
   
-      } catch (e) {
-          console.error("AI moment gen error:", e);
-          return false; // Failure
+  window.showCharMomentsSettings = function() {
+      toggleMomentsMenu();
+      const charSelect = document.getElementById('moment-char-select');
+      charSelect.innerHTML = contacts.filter(c=>!c.isGroup).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      document.getElementById('moment-auto-toggle').checked = autoMomentEnabled;
+      
+      const listContainer = document.getElementById('auto-moment-char-list');
+      listContainer.innerHTML = contacts.filter(c=>!c.isGroup).map(c=>`
+          <div class="select-item">
+            <input type="checkbox" id="automoment-char-${c.id}" value="${c.id}" ${c.autoMoment ? 'checked' : ''} onchange="updateAutoMomentChar('${c.id}', this.checked)">
+            <label for="automoment-char-${c.id}" style="display:flex;align-items:center;width:100%;"><div class="select-avatar" style="background-image:url('${c.avatar}')"></div><span>${c.name}</span></label>
+          </div>
+      `).join('');
+      
+      document.getElementById('auto-moment-char-list-container').style.display = autoMomentEnabled ? 'block' : 'none';
+      document.getElementById('modal-char-moment-settings').style.display = 'flex';
+  }
+
+  window.toggleAutoMoment = function(enabled) {
+      autoMomentEnabled = enabled;
+      localStorage.setItem('autoMomentEnabled', enabled);
+      document.getElementById('auto-moment-char-list-container').style.display = enabled ? 'block' : 'none';
+      startBackgroundMomentGenerator();
+  }
+
+  window.updateAutoMomentChar = function(charId, isEnabled) {
+      const char = contacts.find(c => c.id == charId);
+      if (char) {
+          char.autoMoment = isEnabled;
+          localStorage.setItem('contacts', JSON.stringify(contacts));
       }
   }
 
-  async function triggerAICommentReply(moment, userComment) {
-    if (Math.random() > 0.6) return;
-    const char = contacts.find(c => c.id == moment.authorId);
-    if (!char) return;
-
-    const prompt = `System: You are ${char.name} (${char.prompt}). You posted a moment: "${moment.content}".
-    Your friend, ${savedUserName}, just commented: "${userComment.content}".
-    Task: Write a short, in-character reply to their comment.`;
-    
-    try {
-        const res = await fetch(`${getCleanBaseUrl(config.url)}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` }, body: JSON.stringify({ model: config.model, messages: [{ role: 'user', content: prompt }], temperature: config.temp }) });
-        if (!res.ok) return;
-        const data = await res.json();
-        const replyContent = data.choices[0].message.content.replace(/^["']|["']$/g, '');
-        
-        moment.comments.push({ authorId: char.id, content: replyContent, replyTo: savedUserName });
-        saveMoments();
-        renderMoments();
-    } catch (e) {
-        console.error("AI reply to user comment error:", e);
-    }
-  }
-
-  // --- Font Functions ---
-  function applyFont(url) {
-      if (!url) {
-          const existingStyle = document.getElementById('custom-font-style');
-          if (existingStyle) existingStyle.remove();
-          document.getElementById('font-preview').style.fontFamily = 'inherit';
-          activeFontUrl = '';
-          localStorage.setItem('activeFontUrl', '');
-          return;
-      }
-      const format = url.endsWith('.ttf') ? 'truetype' : 'woff2';
-      const fontName = 'CustomFont';
-      let style = document.getElementById('custom-font-style');
-      if (!style) {
-          style = document.createElement('style');
-          style.id = 'custom-font-style';
-          document.head.appendChild(style);
-      }
-      style.innerHTML = `
-          @font-face {
-              font-family: '${fontName}';
-              src: url('${url}') format('${format}');
-          }
-          body, input, textarea, button, select {
-              font-family: '${fontName}', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-          }
-      `;
-      document.getElementById('font-preview').style.fontFamily = fontName;
-      activeFontUrl = url;
-      localStorage.setItem('activeFontUrl', activeFontUrl);
-  }
-
-  function applyFontFromInput(){
-      const url = document.getElementById('font-url-input').value.trim();
-      if(url) {
-        applyFont(url);
-        showToast('字体已应用', 'success');
-      } else {
-        applyFont(null);
-        showToast('已恢复默认字体', 'info');
-      }
-  }
-
-  function renderFontPresets() {
-      const select = document.getElementById('font-preset-select');
-      select.innerHTML = '<option value="">选择预设...</option>';
-      for (const name in fontPresets) {
-          const option = document.createElement('option');
-          option.value = name;
-          option.textContent = name;
-          select.appendChild(option);
-      }
-  }
-
-  function loadFontPreset() {
-      const select = document.getElementById('font-preset-select');
-      const name = select.value;
-      if (name && fontPresets[name]) {
-          document.getElementById('font-url-input').value = fontPresets[name];
-          applyFont(fontPresets[name]);
-          showToast(`已加载预设 "${name}"`, 'info');
-      }
-  }
-
-  function saveFontPreset() {
-      const url = document.getElementById('font-url-input').value.trim();
-      if (!url) {
-          showToast('请输入字体链接', 'error');
-          return;
-      }
-      const name = prompt('输入预设名称:', '');
-      if (name) {
-          fontPresets[name] = url;
-          localStorage.setItem('fontPresets', JSON.stringify(fontPresets));
-          renderFontPresets();
-          showToast('预设已保存', 'success');
-      }
-  }
-
-  function deleteFontPreset() {
-      const select = document.getElementById('font-preset-select');
-      const name = select.value;
-      if (name && fontPresets[name]) {
-          if (confirm(`确定要删除预设 "${name}" 吗?`)) {
-              delete fontPresets[name];
-              localStorage.setItem('fontPresets', JSON.stringify(fontPresets));
-              renderFontPresets();
-              showToast('预设已删除', 'success');
-          }
-      } else {
-          showToast('请先选择一个要删除的预设', 'info');
-      }
-  }
-
-  // --- API Preset Functions ---
   function renderApiPresets() {
       const select = document.getElementById('api-preset-select');
-      select.innerHTML = '<option value="">选择预设...</option>';
+      select.innerHTML = '<option value="">选择预设</option>';
       for (const name in apiPresets) {
           const option = document.createElement('option');
           option.value = name;
-          option.textContent = name;
+          option.innerText = name;
           select.appendChild(option);
       }
   }
 
-  function loadApiPreset() {
-      const select = document.getElementById('api-preset-select');
-      const name = select.value;
-      if (name && apiPresets[name]) {
-          const preset = apiPresets[name];
-          document.getElementById('api-url').value = preset.url || '';
-          document.getElementById('api-key').value = preset.key || '';
-          document.getElementById('api-model').value = preset.model || '';
-          document.getElementById('api-temp').value = preset.temp || 0.8;
-          document.getElementById('temp-display').innerText = preset.temp || 0.8;
-          showToast(`已加载预设 "${name}"`, 'info');
+  window.saveApiPreset = function() {
+      document.getElementById('api-preset-name-input').value = '';
+      document.getElementById('modal-save-api-preset').style.display = 'flex';
+  }
+  
+  window.confirmSaveApiPreset = function() {
+      const name = document.getElementById('api-preset-name-input').value.trim();
+      if (name) {
+          apiPresets[name] = {
+              url: document.getElementById('api-url').value,
+              key: document.getElementById('api-key').value,
+              model: document.getElementById('api-model').value,
+              temp: document.getElementById('api-temp').value
+          };
+          localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
+          renderApiPresets();
+          closeModal('modal-save-api-preset');
+          showToast(`预设 "${name}" 已保存`, 'success');
       }
   }
 
-  function saveApiPreset() {
-      document.getElementById('api-preset-name-input').value = '';
-      document.getElementById('modal-save-api-preset').style.display = 'flex';
-      document.getElementById('api-preset-name-input').focus();
-  }
-
-  function confirmSaveApiPreset() {
-    const name = document.getElementById('api-preset-name-input').value.trim();
-    if (name) {
-        apiPresets[name] = {
-            url: document.getElementById('api-url').value,
-            key: document.getElementById('api-key').value,
-            model: document.getElementById('api-model').value,
-            temp: parseFloat(document.getElementById('api-temp').value)
-        };
-        localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
-        renderApiPresets();
-        showToast('预设已保存', 'success');
-        closeModal('modal-save-api-preset');
-    } else {
-        showToast('预设名称不能为空', 'error');
-    }
-  }
-
-  function deleteApiPreset() {
-      const select = document.getElementById('api-preset-select');
-      const name = select.value;
+  window.loadApiPreset = function() {
+      const name = document.getElementById('api-preset-select').value;
       if (name && apiPresets[name]) {
-          if (confirm(`确定要删除预设 "${name}" 吗?`)) {
+          const preset = apiPresets[name];
+          document.getElementById('api-url').value = preset.url;
+          document.getElementById('api-key').value = preset.key;
+          document.getElementById('api-model').value = preset.model;
+          document.getElementById('api-temp').value = preset.temp;
+          document.getElementById('temp-display').innerText = preset.temp;
+      }
+  }
+  
+  window.deleteApiPreset = function() {
+      const name = document.getElementById('api-preset-select').value;
+      if (name && apiPresets[name]) {
+          if (confirm(`确定要删除预设 "${name}" 吗？`)) {
               delete apiPresets[name];
               localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
               renderApiPresets();
               showToast('预设已删除', 'success');
           }
-      } else {
-          showToast('请先选择一个要删除的预设', 'info');
       }
   }
 
-  function exportBackup() {
-      const backupData = {};
-      const keysToBackup = [
-          'apiUrl', 'apiKey', 'apiModel', 'apiTemp', 'contacts', 'wbGroups',
-          'worldBooks', 'customEmojis', 'emojiGroups', 'moments', 'autoMomentEnabled',
-          'isFullscreen', 'chatBackgroundImage', 'desktopWallpaper', 'appIconStyle',
-          'customAppIcons', 'userAvatar', 'userName', 'userBio', 'userPersona',
-          'userCover', 'walletBalance', 'walletPassword', 'fontPresets', 'activeFontUrl',
-          'apiPresets'
-      ];
+  function renderFontPresets() {
+      const select = document.getElementById('font-preset-select');
+      select.innerHTML = '<option value="">选择字体预设</option>';
+      for (const name in fontPresets) {
+          const option = document.createElement('option');
+          option.value = name;
+          option.innerText = name;
+          select.appendChild(option);
+      }
+  }
 
-      keysToBackup.forEach(key => {
-          const data = localStorage.getItem(key);
-          if (data !== null) {
-              backupData[key] = data;
+  window.saveFontPreset = function() {
+      const url = document.getElementById('font-url-input').value.trim();
+      if (!url) {
+          showToast('请输入字体链接', 'error');
+          return;
+      }
+      const name = prompt("请输入字体预设名称:");
+      if (name) {
+          fontPresets[name] = url;
+          localStorage.setItem('fontPresets', JSON.stringify(fontPresets));
+          renderFontPresets();
+          showToast(`字体预设 "${name}" 已保存`, 'success');
+      }
+  }
+  
+  window.loadFontPreset = function() {
+      const name = document.getElementById('font-preset-select').value;
+      if (name && fontPresets[name]) {
+          document.getElementById('font-url-input').value = fontPresets[name];
+          applyFontFromInput();
+      }
+  }
+
+  window.deleteFontPreset = function() {
+      const name = document.getElementById('font-preset-select').value;
+      if (name && fontPresets[name]) {
+          if (confirm(`确定删除字体预设 "${name}" 吗？`)) {
+              delete fontPresets[name];
+              localStorage.setItem('fontPresets', JSON.stringify(fontPresets));
+              renderFontPresets();
           }
-      });
-      
-      const jsonString = JSON.stringify(backupData, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `strawberry_backup_${new Date().toISOString().slice(0,10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast('数据已导出', 'success');
+      }
   }
   
-  function updateClock() {
-      const now = new Date();
-      const hours = now.getHours().toString().padStart(2, '0');
-      const minutes = now.getMinutes().toString().padStart(2, '0');
-      const timeString = `${hours}:${minutes}`;
-      document.querySelectorAll('.status-bar-time').forEach(el => el.innerText = timeString);
+  window.applyFontFromInput = function() {
+      const url = document.getElementById('font-url-input').value.trim();
+      activeFontUrl = url;
+      localStorage.setItem('activeFontUrl', url);
+      applyGlobalFont();
   }
 
-  function showNotification(char, msgContent) {
-    clearTimeout(notificationTimer);
-    const banner = document.getElementById('notification-banner');
-    document.getElementById('notif-avatar').style.backgroundImage = `url(${char.avatar})`;
-    document.getElementById('notif-name').innerText = char.name;
-    document.getElementById('notif-message').innerText = msgContent;
-    banner.dataset.chatId = char.id;
-    banner.classList.add('show');
-    notificationTimer = setTimeout(hideNotification, 4000);
-  }
+  function applyGlobalFont() {
+      const styleId = 'global-font-style';
+      let styleElement = document.getElementById(styleId);
+      if (!styleElement) {
+          styleElement = document.createElement('style');
+          styleElement.id = styleId;
+          document.head.appendChild(styleElement);
+      }
 
-  function hideNotification() {
-    const banner = document.getElementById('notification-banner');
-    banner.classList.remove('show');
+      if (activeFontUrl) {
+          const fontName = 'GlobalCustomFont';
+          styleElement.innerHTML = `
+              @font-face {
+                  font-family: '${fontName}';
+                  src: url('${activeFontUrl}');
+              }
+              body, input, textarea, button, select, .app-item span, .contact-name, .contact-desc, .m-name, .m-text, .message, .me-info h2, .me-info p {
+                  font-family: '${fontName}', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+              }
+          `;
+          document.getElementById('font-preview').style.fontFamily = fontName;
+      } else {
+          styleElement.innerHTML = ''; // Clear the style
+          document.getElementById('font-preview').style.fontFamily = '';
+      }
   }
-
-  function onNotificationClick() {
-    const banner = document.getElementById('notification-banner');
-    const chatId = banner.dataset.chatId;
-    if (chatId) {
-      hideNotification();
-      openChat(chatId);
+  
+  window.exportBackup = function() {
+    const data = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        data[key] = localStorage.getItem(key);
     }
-  }
-  
-  function openOfflineModeSettings() {
-    const char = contacts.find(c => c.id === currentChatId);
-    if (!char) return;
-
-    const settings = char.offlineMode;
-    document.getElementById('offline-mode-toggle').checked = settings.enabled;
-    toggleOfflineOptions(settings.enabled);
-    
-    document.getElementById('offline-show-thoughts').checked = settings.showThoughts;
-    document.getElementById('offline-user-pov').value = settings.userPov;
-    document.getElementById('offline-char-pov').value = settings.charPov;
-    document.getElementById('offline-word-count').value = settings.wordCount;
-
-    const styleSelect = document.getElementById('offline-style-wb');
-    styleSelect.innerHTML = '<option value="">默认风格</option>';
-    worldBooks.forEach(wb => {
-        const opt = document.createElement('option');
-        opt.value = wb.id;
-        opt.innerText = `${wb.title} (${wb.group})`;
-        if (settings.styleWbId === wb.id) opt.selected = true;
-        styleSelect.appendChild(opt);
-    });
-
-    document.getElementById('action-panel').classList.remove('show');
-    document.getElementById('modal-offline-settings').style.display = 'flex';
-  }
-
-  function toggleOfflineOptions(enabled) {
-      document.getElementById('offline-options-container').style.display = enabled ? 'block' : 'none';
-  }
-  
-  function saveOfflineModeSettings() {
-    const char = contacts.find(c => c.id === currentChatId);
-    if (!char) return;
-
-    char.offlineMode.enabled = document.getElementById('offline-mode-toggle').checked;
-    char.offlineMode.showThoughts = document.getElementById('offline-show-thoughts').checked;
-    char.offlineMode.userPov = document.getElementById('offline-user-pov').value;
-    char.offlineMode.charPov = document.getElementById('offline-char-pov').value;
-    char.offlineMode.wordCount = parseInt(document.getElementById('offline-word-count').value, 10) || 150;
-    char.offlineMode.styleWbId = document.getElementById('offline-style-wb').value;
-
-    localStorage.setItem('contacts', JSON.stringify(contacts));
-    closeModal('modal-offline-settings');
-    updateChatTitleIndicator();
-    showToast('线下模式设置已保存', 'success');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `strawberry_backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
   
   function updateChatTitleIndicator() {
       const char = contacts.find(c => c.id === currentChatId);
-      const titleEl = document.getElementById('chat-title');
-      if (!char || !titleEl) return;
-      
-      let existingIndicator = titleEl.querySelector('.offline-indicator');
-      if (existingIndicator) {
-          existingIndicator.remove();
-      }
+      if (!char) return;
 
-      titleEl.innerText = char.name; // Reset name
+      const titleEl = document.getElementById('chat-title');
+      let titleText = char.name;
       
       if (char.offlineMode && char.offlineMode.enabled) {
-          const indicator = document.createElement('span');
-          indicator.className = 'offline-indicator';
-          indicator.innerText = '线下';
-          titleEl.appendChild(indicator);
+          titleText += ' <span class="offline-indicator">线下</span>';
       }
+      titleEl.innerHTML = titleText;
+  }
+  
+  function showNotification(char, message) {
+      if (document.querySelector('.screen.active').id === 'screen-chat' && currentChatId === char.id) {
+          return; // Don't show if user is already in the chat
+      }
+      
+      if(notificationTimer && lastNotificationCharId === char.id) {
+        // If a notif from the same char is already showing, just update the message
+         document.getElementById('notif-message').innerText = message;
+         clearTimeout(notificationTimer);
+      } else {
+        const banner = document.getElementById('notification-banner');
+        document.getElementById('notif-avatar').style.backgroundImage = `url(${char.avatar})`;
+        document.getElementById('notif-name').innerText = char.name;
+        document.getElementById('notif-message').innerText = message;
+        banner.classList.add('show');
+        lastNotificationCharId = char.id;
+      }
+
+      notificationTimer = setTimeout(() => {
+          document.getElementById('notification-banner').classList.remove('show');
+          notificationTimer = null;
+          lastNotificationCharId = null;
+      }, 4000);
   }
 
-  // --- Initial Setup ---
-  updateClock();
-  setInterval(updateClock, 15000);
+  window.onNotificationClick = function() {
+      if (lastNotificationCharId) {
+          clearTimeout(notificationTimer);
+          document.getElementById('notification-banner').classList.remove('show');
+          notificationTimer = null;
+          window.openChat(lastNotificationCharId);
+          lastNotificationCharId = null;
+      }
+  }
+  
+  window.openOfflineModeSettings = function() {
+    const char = contacts.find(c => c.id === currentChatId);
+    if (!char) return;
 
-  if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; }
+    if (!char.offlineMode) {
+      char.offlineMode = { enabled: false, showThoughts: true, userPov: 'second', charPov: 'first', wordCount: 150, styleWbId: '' };
+    }
+    const { enabled, showThoughts, userPov, charPov, wordCount, styleWbId } = char.offlineMode;
 
-  // Keypress handlers for modal inputs
-  document.getElementById('msg-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMessage(); });
-  document.getElementById('moment-comment-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMomentComment(); });
-  document.getElementById('new-wb-group-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmAddNewWBGroup(); });
-  document.getElementById('new-emoji-group-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmAddNewEmojiGroup(); });
-  document.getElementById('topup-amount')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmTopUp(); });
-  document.getElementById('transfer-amount')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmTransfer(); });
-  document.getElementById('api-preset-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmSaveApiPreset(); });
-  document.getElementById('edit-message-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") saveEditedMessage(); });
+    document.getElementById('offline-mode-toggle').checked = enabled;
+    document.getElementById('offline-show-thoughts').checked = showThoughts;
+    document.getElementById('offline-user-pov').value = userPov;
+    document.getElementById('offline-char-pov').value = charPov;
+    document.getElementById('offline-word-count').value = wordCount;
 
-  // Click handlers
-  document.getElementById('moment-comment-send').onclick = sendMomentComment;
+    const wbSelect = document.getElementById('offline-style-wb');
+    wbSelect.innerHTML = '<option value="">默认风格</option>';
+    worldBooks.forEach(wb => {
+        const opt = document.createElement('option');
+        opt.value = wb.id;
+        opt.innerText = `${wb.title} (${wb.group})`;
+        if (styleWbId === wb.id) opt.selected = true;
+        wbSelect.appendChild(opt);
+    });
 
-  // Final UI applications on load
-  applyDesktopWallpaper();
-  applyChatBackground();
-  applyAppIconStyle();
-  if (activeFontUrl) applyFont(activeFontUrl);
+    window.toggleOfflineOptions(enabled);
+    document.getElementById('modal-offline-settings').style.display = 'flex';
+    document.getElementById('action-panel').classList.remove('show');
+  }
+
+  window.toggleOfflineOptions = function(checked) {
+      document.getElementById('offline-options-container').style.display = checked ? 'block' : 'none';
+  }
+
+  window.saveOfflineModeSettings = function() {
+      const char = contacts.find(c => c.id === currentChatId);
+      if (!char) return;
+
+      char.offlineMode.enabled = document.getElementById('offline-mode-toggle').checked;
+      char.offlineMode.showThoughts = document.getElementById('offline-show-thoughts').checked;
+      char.offlineMode.userPov = document.getElementById('offline-user-pov').value;
+      char.offlineMode.charPov = document.getElementById('offline-char-pov').value;
+      char.offlineMode.wordCount = parseInt(document.getElementById('offline-word-count').value, 10) || 150;
+      char.offlineMode.styleWbId = document.getElementById('offline-style-wb').value;
+      
+      localStorage.setItem('contacts', JSON.stringify(contacts));
+      updateChatTitleIndicator();
+      closeModal('modal-offline-settings');
+      showToast('线下模式设置已保存', 'success');
+  }
+
+  
+  // App Initialization
+  document.addEventListener('DOMContentLoaded', () => {
+    applyChatBackground();
+    applyDesktopWallpaper();
+    applyAppIconStyle();
+    applyGlobalFont();
+    const timeEls = document.querySelectorAll('.status-bar-time');
+    function updateTime(){ const d=new Date(); const t=`${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`; timeEls.forEach(el=>el.innerText=t); }
+    setInterval(updateTime, 1000);
+    updateTime();
+  });
 </script>
 </body>
 </html>
