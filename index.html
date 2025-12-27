@@ -348,6 +348,8 @@
   /* 模态框 */
   .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; display: none; justify-content: center; align-items: center; }
   .modal-content { background: #fff; width: 85%; padding: 20px; border-radius: 16px; max-height: 80%; overflow-y: auto; }
+  .modal-content .modal-button-group { display: flex; gap: 10px; }
+  .modal-content .modal-button-group button { flex: 1; margin: 0 !important; }
 
   /* 世界书样式 */
   .wb-group-bar { display: flex; overflow-x: auto; padding: 10px 15px; background: #fff; border-bottom: 1px solid #eee; gap: 8px; white-space: nowrap; height: 50px; }
@@ -543,7 +545,7 @@
   </div>
 
   <div id="screen-home" class="screen active">
-    <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
+    <div class="status-bar"><span class="status-bar-time">17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
     <div class="home-content">
       <div class="profile-card">
         <div id="home-avatar-img" class="avatar-big" onclick="document.getElementById('avatar-upload').click()"></div>
@@ -560,7 +562,7 @@
   </div>
 
   <div id="screen-settings" class="screen">
-    <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
+    <div class="status-bar"><span class="status-bar-time">17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
     <div class="nav-bar"><button class="nav-btn" onclick="goHome()"><i class="fas fa-chevron-left"></i></button><span>设置</span><div></div></div>
     <div class="form-list">
       <div class="form-group">
@@ -597,7 +599,7 @@
   </div>
 
   <div id="screen-themes" class="screen">
-    <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
+    <div class="status-bar"><span class="status-bar-time">17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
     <div class="nav-bar"><button class="nav-btn" onclick="goHome()"><i class="fas fa-chevron-left"></i></button><span>主题设置</span><div></div></div>
     <div class="form-list">
       <div class="form-group">
@@ -667,7 +669,7 @@
   </div>
 
   <div id="screen-wechat" class="screen">
-    <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
+    <div class="status-bar"><span class="status-bar-time">17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
     <div class="nav-bar" id="wx-nav-bar">
         <div style="width: 50px; text-align: left;">
           <button class="nav-btn" onclick="goHome()"><i class="fas fa-chevron-left"></i></button>
@@ -735,7 +737,7 @@
   </div>
 
   <div id="screen-chat" class="screen">
-    <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
+    <div class="status-bar"><span class="status-bar-time">17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
     <div class="nav-bar" id="chat-nav-bar">
       <div style="width: 50px; text-align: left;">
         <button class="nav-btn" onclick="backToWeChat()"><i class="fas fa-chevron-left"></i></button>
@@ -777,7 +779,7 @@
   </div>
 
   <div id="screen-worldbooks" class="screen">
-    <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
+    <div class="status-bar"><span class="status-bar-time">17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
     <div class="nav-bar">
       <div style="width:50px; text-align:left;"><button class="nav-btn" onclick="goHome()"><i class="fas fa-chevron-left"></i></button></div>
       <span style="flex:1; text-align:center;">世界书</span>
@@ -788,7 +790,7 @@
   </div>
 
   <div id="screen-char-settings" class="screen">
-    <div class="status-bar"><span>17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
+    <div class="status-bar"><span class="status-bar-time">17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
     <div class="nav-bar nav-bar-with-back">
       <button class="nav-btn" onclick="backToChat()"><i class="fas fa-chevron-left"></i></button>
       <span class="nav-title">聊天信息</span>
@@ -862,7 +864,7 @@
       <div id="new-char-avatar-preview" style="width: 80px; height: 80px; border-radius: 10px; background-color: #eee; margin: 15px auto; background-size: cover; background-position: center; cursor: pointer; display: flex; justify-content: center; align-items: center; color: #999; font-size: 24px;" onclick="document.getElementById('new-char-avatar-upload').click()"><i class="fas fa-camera"></i></div>
       <input type="text" id="new-name" placeholder="名字" style="width:100%;padding:10px;margin-bottom:10px;text-align:left;">
       <textarea id="new-prompt" rows="3" placeholder="人设..." style="width:100%;padding:10px;text-align:left;"></textarea>
-      <div style="display:flex;gap:10px;margin-top:10px;">
+      <div class="modal-button-group" style="margin-top:10px;">
         <button class="btn-secondary" onclick="closeModal('modal-add-char')">取消</button>
         <button class="btn-primary" onclick="addNewChar()">添加</button>
       </div>
@@ -875,7 +877,7 @@
       <input type="text" id="new-group-name" placeholder="群聊名称 (选填)" style="width:100%;padding:10px;margin-bottom:10px;">
       <div style="margin-bottom:5px;font-size:12px;color:#666;">选择群成员:</div>
       <div id="group-member-select-list" class="selection-list"></div>
-      <div style="display:flex;gap:10px;margin-top:10px;">
+      <div class="modal-button-group" style="margin-top:10px;">
         <button class="btn-secondary" onclick="closeModal('modal-create-group')">取消</button>
         <button class="btn-primary" onclick="createNewGroupChat()">创建</button>
       </div>
@@ -892,7 +894,7 @@
           <select id="target-addr-group" class="form-select" style="border:1px solid #ddd;padding:5px;margin-bottom:10px;"></select>
           <div id="addr-move-list" class="selection-list"></div>
           
-          <div style="display:flex;gap:10px;margin-top:10px;">
+          <div class="modal-button-group" style="margin-top:10px;">
             <button class="btn-secondary" onclick="closeModal('modal-group-manager')">取消</button>
             <button class="btn-primary" onclick="saveAddrGroupMove()">确认移动</button>
           </div>
@@ -902,23 +904,28 @@
   <div id="modal-memory" class="modal">
     <div class="modal-content">
       <h3>记忆管理</h3>
-      <div class="form-group" style="box-shadow:none;border:1px solid #eee;">
+      <div class="form-group" style="padding: 0 15px 10px; margin-bottom: 15px; box-shadow:none;border:1px solid #eee;">
           <div class="form-row-item">
-              <label>自动总结</label>
+              <label style="font-weight: bold;">短期记忆 (上下文条数)</label>
+              <input type="number" id="mem-limit-input" value="20" style="width:60px;text-align:right;border:none; border-bottom:1px solid #ddd;">
+          </div>
+      </div>
+      <div class="form-group" style="padding: 0 15px; margin-bottom: 15px; box-shadow:none;border:1px solid #eee;">
+          <div class="form-row-item">
+              <label style="font-weight: bold;">自动总结长期记忆</label>
               <label class="switch">
                 <input type="checkbox" id="mem-auto-toggle">
                 <span class="slider"></span>
               </label>
           </div>
-          <div class="form-row-item">
-              <label>触发条数</label>
-              <input type="number" id="mem-limit-input" value="20" style="width:50px;text-align:right;border-bottom:1px solid #ddd;">
+          <div style="font-size:12px; color:#999; padding: 0 0 10px;">
+            启用后，当对话超出短期记忆条数时，会自动总结并存入下方。
           </div>
       </div>
-      <label class="form-label">当前记忆摘要</label>
+      <label class="form-label" style="font-weight: bold;">长期记忆</label>
       <textarea id="mem-summary-text" class="form-textarea" style="background:#f9f9f9;padding:10px;border-radius:8px;"></textarea>
       
-      <div style="display:flex;gap:10px;margin-top:10px;">
+      <div class="modal-button-group" style="margin-top:10px;">
         <button class="btn-secondary" onclick="closeModal('modal-memory')">关闭</button>
         <button class="btn-primary" onclick="saveMemorySettings()">保存</button>
       </div>
@@ -929,7 +936,7 @@
     <div class="modal-content">
       <h3>新建世界书分组</h3>
       <input type="text" id="new-wb-group-name-input" placeholder="分组名" style="width:100%;padding:10px;margin-bottom:10px;">
-      <div style="display:flex;gap:10px;margin-top:10px;">
+      <div class="modal-button-group" style="margin-top:10px;">
         <button class="btn-secondary" onclick="closeModal('modal-wb-new-group')">取消</button>
         <button class="btn-primary" onclick="confirmAddNewWBGroup()">添加</button>
       </div>
@@ -940,7 +947,7 @@
     <div class="modal-content">
       <h3>新建表情分组</h3>
       <input type="text" id="new-emoji-group-name-input" placeholder="分组名" class="form-input" style="border-bottom:1px solid #eee; margin:15px 0;">
-      <div style="display:flex;gap:10px;margin-top:10px;">
+      <div class="modal-button-group" style="margin-top:10px;">
         <button class="btn-secondary" onclick="closeModal('modal-new-emoji-group')">取消</button>
         <button class="btn-primary" onclick="confirmAddNewEmojiGroup()">添加</button>
       </div>
@@ -954,7 +961,7 @@
       <select id="wb-group-select" class="form-select" style="border:1px solid #ddd;padding:10px;"></select>
       <textarea id="wb-content" rows="6" placeholder="内容..."></textarea>
       <input type="hidden" id="wb-id">
-      <div style="display:flex;gap:10px;margin-top:10px;">
+      <div class="modal-button-group" style="margin-top:10px;">
         <button class="btn-secondary" onclick="closeModal('modal-wb')">取消</button>
         <button class="btn-primary" onclick="saveWB()">保存</button>
       </div>
@@ -979,7 +986,7 @@
         </select>
       </div>
 
-      <div style="display:flex;gap:10px;margin-top:15px;">
+      <div class="modal-button-group" style="margin-top:15px;">
         <button class="btn-secondary" onclick="closeModal('modal-post-moment')">取消</button>
         <button class="btn-primary" onclick="postUserMoment()">发表</button>
       </div>
@@ -1008,7 +1015,7 @@
       <h3>我的人设</h3>
       <p style="font-size:12px; color:#666; margin-bottom:10px;">这里定义你自己的身份、性格、说话方式等。AI在与你互动时，会参考这里的内容。</p>
       <textarea id="user-persona-input" class="form-textarea" style="background:#f9f9f9;padding:10px;border-radius:8px;"></textarea>
-      <div style="display:flex;gap:10px;margin-top:10px;">
+      <div class="modal-button-group" style="margin-top:10px;">
         <button class="btn-secondary" onclick="closeModal('modal-user-persona')">取消</button>
         <button class="btn-primary" onclick="saveUserPersona()">保存</button>
       </div>
@@ -1032,7 +1039,7 @@
       <div class="modal-content">
           <h3>钱包充值</h3>
           <input type="number" id="topup-amount" class="form-input" placeholder="输入充值金额" style="border-bottom:1px solid #eee; margin:15px 0;">
-          <div style="display:flex;gap:10px;">
+          <div class="modal-button-group">
               <button class="btn-secondary" onclick="closeModal('modal-wallet-topup')">取消</button>
               <button class="btn-primary" onclick="confirmTopUp()">确定</button>
           </div>
@@ -1044,7 +1051,7 @@
         <h3>向 <span id="transfer-recipient-name"></span> 转账</h3>
         <input type="number" id="transfer-amount" class="form-input" placeholder="输入转账金额" style="text-align:center; font-size: 24px; padding: 20px 0; border:none; border-bottom: 1px solid #eee; margin: 15px 0;">
         <div style="text-align: center; color: #999; font-size: 14px; margin-bottom: 15px;">钱包余额: ¥<span id="transfer-wallet-balance">0.00</span></div>
-        <div style="display:flex;gap:10px;">
+        <div class="modal-button-group">
             <button class="btn-secondary" onclick="closeModal('modal-transfer')">取消</button>
             <button class="btn-primary" onclick="confirmTransfer()">确认转账</button>
         </div>
@@ -1080,9 +1087,31 @@
     <div class="modal-content">
       <h3>编辑消息</h3>
       <textarea id="edit-message-input" class="form-textarea" style="margin:10px 0; background:#f9f9f9; padding:10px; border-radius:8px;"></textarea>
-      <div style="display:flex;gap:10px;margin-top:10px;">
+      <div class="modal-button-group" style="margin-top:10px;">
         <button class="btn-secondary" onclick="closeModal('modal-edit-message')">取消</button>
         <button class="btn-primary" onclick="saveEditedMessage()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-save-api-preset" class="modal">
+    <div class="modal-content">
+      <h3>保存API预设</h3>
+      <input type="text" id="api-preset-name-input" class="form-input" placeholder="输入预设名称" style="border-bottom:1px solid #eee; margin:15px 0;">
+      <div class="modal-button-group" style="margin-top:10px;">
+        <button class="btn-secondary" onclick="closeModal('modal-save-api-preset')">取消</button>
+        <button class="btn-primary" onclick="confirmSaveApiPreset()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-confirm-delete" class="modal">
+    <div class="modal-content" style="text-align: center;">
+      <h3>确认操作</h3>
+      <p id="confirm-delete-message" style="margin: 20px 0; font-size: 16px; line-height: 1.5;"></p>
+      <div class="modal-button-group" style="margin-top:10px;">
+        <button class="btn-secondary" style="flex: 1; margin: 0;" onclick="closeModal('modal-confirm-delete')">取消</button>
+        <button class="btn-danger" style="flex: 1; margin: 0;" onclick="confirmDeleteChar()">确认删除</button>
       </div>
     </div>
   </div>
@@ -1122,6 +1151,15 @@
   };
   
   let contacts = JSON.parse(localStorage.getItem('contacts')) || [{ id: 1, name: "男友", realname: "", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=Boy", prompt: "你是用户的男朋友，温柔体贴，偶尔会有点小霸道。", worldBookId: 'wb_1', hideAvatar: 'none', history: [], syncReality: false, useRealTime: false, useRealWeather: false, city: '', group: '特别关心', isGroup: false, isPinned: false, members: [], memory: { auto: false, limit: 20, summary: "" } }];
+  
+  // Data hydration for memory object in groups
+  contacts.forEach(c => {
+    if (c.isGroup && !c.memory) {
+      c.memory = { auto: false, limit: 20, summary: "" };
+    }
+  });
+
+
   let wbGroups = JSON.parse(localStorage.getItem('wbGroups')) || ['默认']; 
   let worldBooks = JSON.parse(localStorage.getItem('worldBooks')) || [{ id: 'wb_1', title: '简单恋爱日常', content: '现代都市背景...', group: '默认' }];
   let customEmojis = JSON.parse(localStorage.getItem('customEmojis')) || [];
@@ -1561,41 +1599,41 @@
   function handleInput() { const val = document.getElementById('msg-input').value; if(val.trim().length > 0) { document.getElementById('btn-plus').style.display = 'none'; document.getElementById('btn-send').style.display = 'block'; document.getElementById('input-area').classList.add('typing-mode'); } else { document.getElementById('btn-plus').style.display = 'flex'; document.getElementById('btn-send').style.display = 'none'; document.getElementById('input-area').classList.remove('typing-mode'); } }
   
   function toggleActionPanel(type) { 
-      const panel = document.getElementById('action-panel'); 
-      const contentEmoji = document.getElementById('panel-emoji'); 
-      const contentMore = document.getElementById('panel-more'); 
+    const panel = document.getElementById('action-panel'); 
+    const contentEmoji = document.getElementById('panel-emoji'); 
+    const contentMore = document.getElementById('panel-more'); 
+    
+    if (type === 'more') {
+      const grid = document.getElementById('action-grid-more');
+      grid.innerHTML = '';
+      const char = contacts.find(c => c.id === currentChatId);
+
+      let items = [
+        { icon: 'fas fa-image', color:'#333', name:'相册', action: "document.getElementById('img-send-upload').click()" },
+        { icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" }
+      ];
       
-      if (type === 'more') {
-        const grid = document.getElementById('action-grid-more');
-        grid.innerHTML = '';
-        const char = contacts.find(c => c.id === currentChatId);
-
-        let items = [
-          { icon: 'fas fa-image', color:'#333', name:'相册', action: "document.getElementById('img-send-upload').click()" },
-        ];
-        
-        if (char && char.isGroup) {
-            items.push({ icon: 'fas fa-dice', color:'#f44336', name:'骰子', action: 'sendDiceMessage' });
-        } else if(char) {
-            items.push({ icon: 'fas fa-exchange-alt', color: '#fa9d3b', name: '转账', action: 'sendTransfer()' });
-            items.push({ icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" });
-        }
-        
-        items.forEach(item => {
-            const el = document.createElement('div'); el.className='action-item';
-            el.innerHTML = `<div class="action-icon" onclick="${item.action}"><i class="${item.icon}" style="color:${item.color}"></i></div><span>${item.name}</span>`;
-            grid.appendChild(el);
-        });
+      if (char && char.isGroup) {
+          items.push({ icon: 'fas fa-dice', color:'#f44336', name:'骰子', action: 'sendDiceMessage' });
+      } else if(char) {
+          items.push({ icon: 'fas fa-exchange-alt', color: '#fa9d3b', name: '转账', action: 'sendTransfer()' });
       }
+      
+      items.forEach(item => {
+          const el = document.createElement('div'); el.className='action-item';
+          el.innerHTML = `<div class="action-icon" onclick="${item.action}"><i class="${item.icon}" style="color:${item.color}"></i></div><span>${item.name}</span>`;
+          grid.appendChild(el);
+      });
+    }
 
-      if (panel.classList.contains('show')) { 
-        if ((type === 'emoji' && contentEmoji.classList.contains('active')) || (type === 'more' && contentMore.classList.contains('active'))) { panel.classList.remove('show'); return; } 
-      } 
-      contentEmoji.classList.remove('active'); 
-      contentMore.classList.remove('active'); 
-      if (type === 'emoji') { contentEmoji.classList.add('active'); renderEmojiPanel(); } else { contentMore.classList.add('active'); } 
-      panel.classList.add('show'); 
-      setTimeout(() => { const chatMessages = document.getElementById('chat-messages'); if (chatMessages) { chatMessages.scrollTop = chatMessages.scrollHeight; } }, 200); 
+    if (panel.classList.contains('show')) { 
+      if ((type === 'emoji' && contentEmoji.classList.contains('active')) || (type === 'more' && contentMore.classList.contains('active'))) { panel.classList.remove('show'); return; } 
+    } 
+    contentEmoji.classList.remove('active'); 
+    contentMore.classList.remove('active'); 
+    if (type === 'emoji') { contentEmoji.classList.add('active'); renderEmojiPanel(); } else { contentMore.classList.add('active'); } 
+    panel.classList.add('show'); 
+    setTimeout(() => { const chatMessages = document.getElementById('chat-messages'); if (chatMessages) { chatMessages.scrollTop = chatMessages.scrollHeight; } }, 200); 
   }
   
   function renderEmojiPanel() {
@@ -2001,7 +2039,6 @@
     } 
     
     if(char.isGroup && !isSelf && roleName) {
-        avatarHtml = `<div style="display:flex;flex-direction:column;align-items:flex-start;">${avatarHtml}</div>`;
         bubbleHtml = `<div><div class="msg-sender-name">${roleName}</div>${bubbleHtml}</div>`;
     }
 
@@ -2058,9 +2095,46 @@
   async function fetchRealWeather(city) {
     if(!city) return null;
     try {
-        const response = await fetch(`https://wttr.in/${city}?format=%C+%t&lang=zh`);
-        if(response.ok) { return await response.text(); }
-    } catch(e) { console.log("Weather fetch failed", e); }
+        // 1. Geocoding: Get coordinates for the city
+        const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+        if(!geoResponse.ok) { console.error('Geocoding API error'); return null; }
+        const geoData = await geoResponse.json();
+        if(!geoData.results || geoData.results.length === 0) { console.error('City not found'); return null; }
+        
+        const { latitude, longitude } = geoData.results[0];
+
+        // 2. Fetch weather using coordinates
+        const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`);
+        if(!weatherResponse.ok) { console.error('Weather API error'); return null; }
+        const weatherData = await weatherResponse.json();
+        
+        if (!weatherData.current) { console.error('No current weather data'); return null; }
+
+        const temp = Math.round(weatherData.current.temperature_2m);
+        const weatherCode = weatherData.current.weather_code;
+
+        const weatherDescriptions = {
+            0: '晴朗', 1: '少云', 2: '多云', 3: '阴',
+            45: '雾', 48: '雾凇',
+            51: '小毛毛雨', 53: '毛毛雨', 55: '大毛毛雨',
+            56: '冻毛毛雨', 57: '冻大毛毛雨',
+            61: '小雨', 63: '中雨', 65: '大雨',
+            66: '冻雨', 67: '冻大雨',
+            71: '小雪', 73: '中雪', 75: '大雪',
+            77: '米雪',
+            80: '小阵雨', 81: '中阵雨', 82: '大阵雨',
+            85: '阵雪', 86: '大阵雪',
+            95: '雷暴',
+            96: '雷暴伴有冰雹', 99: '雷暴伴有冰雹'
+        };
+        
+        const description = weatherDescriptions[weatherCode] ?? '未知天气';
+
+        return `${description} ${temp}°C`;
+
+    } catch(e) { 
+        console.error("Weather fetch failed:", e);
+    }
     return null;
   }
   
@@ -2083,7 +2157,7 @@
       
       document.getElementById('mem-auto-toggle').checked = char.memory.auto;
       document.getElementById('mem-limit-input').value = char.memory.limit;
-      document.getElementById('mem-summary-text').value = char.memory.summary || "暂无摘要...";
+      document.getElementById('mem-summary-text').value = char.memory.summary || "";
       
       document.getElementById('modal-memory').style.display = 'flex';
       document.getElementById('action-panel').classList.remove('show');
@@ -2141,7 +2215,11 @@
                 const m = contacts.find(u => u.id === mid);
                 if(m) {
                     const shortPrompt = m.prompt.substring(0, 100).replace(/\n/g, " ");
-                    membersDesc += `- **${m.name}**: ${shortPrompt}\n`;
+                    let memberInfo = `- **${m.name}**: ${shortPrompt}`;
+                    if(m.memory && m.memory.summary) {
+                        memberInfo += ` (Memory: ${m.memory.summary})`;
+                    }
+                    membersDesc += memberInfo + '\n';
                 }
             });
         }
@@ -2151,7 +2229,11 @@
 ### Group Info
 - Group Name: "${char.name}"
 - Human User: "${savedUserName}" (Persona: "${savedUserPersona}"). You MUST NOT generate responses for the user.
-
+`;
+        if (char.memory && char.memory.summary) {
+            systemPrompt += `\n### Group Memory\n${char.memory.summary}\n`;
+        }
+        systemPrompt += `
 ### AI Characters in this group:
 ${membersDesc}
 ### Your Task
@@ -2184,6 +2266,19 @@ Now, based on the following chat history, generate the next response(s).`;
         if(char.worldBookId) { const wb = worldBooks.find(b => b.id === char.worldBookId); if(wb) systemPrompt += `\n\n[World Info]:\n${wb.content}`; }
         if(char.memory && char.memory.summary) systemPrompt += `\n[Long-term Memory]: ${char.memory.summary}`;
         
+        const groupsMemberOf = contacts.filter(c => c.isGroup && c.members.includes(char.id));
+        if (groupsMemberOf.length > 0) {
+            let groupActivityContext = "\n\n### Recent Group Activity:\n";
+            groupsMemberOf.forEach(group => {
+                const last5msgs = group.history.slice(-5).map(m => {
+                    const sender = m.role === 'user' ? savedUserName : m.roleName || group.name;
+                    return `(${group.name}) ${sender}: ${m.content}`;
+                }).join('\n');
+                if(last5msgs) groupActivityContext += `${last5msgs}\n`;
+            });
+            systemPrompt += groupActivityContext;
+        }
+
         let charMoments = moments.filter(m => m.authorId == char.id).slice(0, 3);
         if(charMoments.length > 0) {
             systemPrompt += `\n\n### Your Recent Moments History (for context):\n`;
@@ -2193,7 +2288,8 @@ Now, based on the following chat history, generate the next response(s).`;
         systemPrompt += `\n\n### Instructions:\n1. Reply naturally and in character. \n2. You can send multiple separate messages (bubbles) to simulate real chatting speed. Use '|||' to separate them. Example: "Haha"|||"That is funny"\n3. **Quoting**: You can quote the user's message if specific context is needed. To quote, start your message with \`[QUOTE: quoted_text]\`. Example: \`[QUOTE: I like cats] Me too!\`.\n4. **Handling Transfers**: When you receive a transfer from the user (indicated by a message ID), you should decide whether to accept or return it. You MUST use one of the following commands. You can also provide a conversational reply in the same turn separated by '|||'. Example: \`[CMD:ACCEPT_TRANSFER:msg_12345]|||Thanks babe!\`\n5. Other commands: [CMD:DELETE_MOMENT:{moment_id_or_keyword}], [CMD:CHANGE_AVATAR], [CMD:SEND_TRANSFER:{amount}], [CMD:ROLL_DICE].`;
     }
     
-    const recentHistory = char.history ? char.history.slice(-12).map(m => {
+    const contextLength = char.memory?.limit || 20;
+    const recentHistory = char.history ? char.history.slice(-contextLength).map(m => {
         if(m.isImage) return { role: "user", content: `[${savedUserName} sent an Image]` };
         if(m.content && m.content.startsWith('[TRANSFER]')) { return { role: "user", content: `[${savedUserName} sent a transfer of ${m.content.replace('[TRANSFER]','')} yuan. Message ID: ${m.id}]` }; }
         if(m.content && m.content.startsWith('[REDPACKET]')) return { role: "user", content: `[${savedUserName} sent a Red Packet: ${m.content.replace('[REDPACKET]','')}]` };
@@ -2279,7 +2375,7 @@ Now, based on the following chat history, generate the next response(s).`;
               
               setTimeout(() => {
                   processReplySequence(char, parts, index + 1, originalTitle);
-              }, 1000 + Math.random() * 1000);
+              }, 500 + Math.random() * 800);
               return; 
           }
       } else {
@@ -2300,7 +2396,7 @@ Now, based on the following chat history, generate the next response(s).`;
 
       setTimeout(() => {
           processReplySequence(char, parts, index + 1, originalTitle);
-      }, 1000 + Math.random() * 1000);
+      }, 500 + Math.random() * 800);
   }
 
   async function handleAICommands(reply, char) {
@@ -2502,7 +2598,9 @@ Now, based on the following chat history, generate the next response(s).`;
     if (x + 150 > phoneShell.offsetWidth) x = phoneShell.offsetWidth - 160;
     if (y + 150 > phoneShell.offsetHeight) y = phoneShell.offsetHeight - 150;
     if (x < 10) x = 10;
-    menu.style.left = x + 'px'; menu.style.top = y + 'px'; menu.style.display = 'block';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    menu.style.display = 'block';
   }
 
   function menuActionChatList(action) {
@@ -3150,7 +3248,8 @@ Now, based on the following chat history, generate the next response(s).`;
         members: selectedMemberIds,
         history: [],
         prompt: '',
-        isPinned: false
+        isPinned: false,
+        memory: { auto: false, limit: 20, summary: "" }
     };
 
     contacts.unshift(newGroup);
@@ -3274,17 +3373,23 @@ Now, based on the following chat history, generate the next response(s).`;
     const char = contacts.find(c => c.id === currentChatId);
     if (!char) return;
     const action = char.isGroup ? '解散该群聊' : '删除该好友';
-    if (confirm(`确定要${action}吗？所有聊天记录将被清除。`)) {
-        contacts = contacts.filter(c => c.id !== currentChatId);
-        contacts.forEach(group => {
-            if(group.isGroup && group.members) {
-                group.members = group.members.filter(mId => mId !== currentChatId);
-            }
-        });
-        localStorage.setItem('contacts', JSON.stringify(contacts));
-        showToast('已删除', 'success');
-        backToWeChat();
-    }
+    const message = `确定要${action} “${char.name}” 吗？所有聊天记录将被清除。`;
+
+    document.getElementById('confirm-delete-message').innerText = message;
+    document.getElementById('modal-confirm-delete').style.display = 'flex';
+  }
+
+  function confirmDeleteChar() {
+    contacts = contacts.filter(c => c.id !== currentChatId);
+    contacts.forEach(group => {
+        if (group.isGroup && group.members) {
+            group.members = group.members.filter(mId => mId !== currentChatId);
+        }
+    });
+    localStorage.setItem('contacts', JSON.stringify(contacts));
+    closeModal('modal-confirm-delete');
+    showToast('已删除', 'success');
+    backToWeChat();
   }
 
   function toggleRealitySettings(checked) {
@@ -3558,18 +3663,27 @@ Now, based on the following chat history, generate the next response(s).`;
   }
 
   function saveApiPreset() {
-      const name = prompt('输入预设名称:', '');
-      if (name) {
-          apiPresets[name] = {
-              url: document.getElementById('api-url').value,
-              key: document.getElementById('api-key').value,
-              model: document.getElementById('api-model').value,
-              temp: parseFloat(document.getElementById('api-temp').value)
-          };
-          localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
-          renderApiPresets();
-          showToast('预设已保存', 'success');
-      }
+      document.getElementById('api-preset-name-input').value = '';
+      document.getElementById('modal-save-api-preset').style.display = 'flex';
+      document.getElementById('api-preset-name-input').focus();
+  }
+
+  function confirmSaveApiPreset() {
+    const name = document.getElementById('api-preset-name-input').value.trim();
+    if (name) {
+        apiPresets[name] = {
+            url: document.getElementById('api-url').value,
+            key: document.getElementById('api-key').value,
+            model: document.getElementById('api-model').value,
+            temp: parseFloat(document.getElementById('api-temp').value)
+        };
+        localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
+        renderApiPresets();
+        showToast('预设已保存', 'success');
+        closeModal('modal-save-api-preset');
+    } else {
+        showToast('预设名称不能为空', 'error');
+    }
   }
 
   function deleteApiPreset() {
@@ -3617,6 +3731,14 @@ Now, based on the following chat history, generate the next response(s).`;
       URL.revokeObjectURL(url);
       showToast('数据已导出', 'success');
   }
+  
+  function updateClock() {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const timeString = `${hours}:${minutes}`;
+      document.querySelectorAll('.status-bar-time').forEach(el => el.innerText = timeString);
+  }
 
   if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; }
   document.getElementById('msg-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMessage(); });
@@ -3624,6 +3746,11 @@ Now, based on the following chat history, generate the next response(s).`;
   document.getElementById('moment-comment-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMomentComment(); });
   document.getElementById('new-wb-group-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmAddNewWBGroup(); });
   document.getElementById('new-emoji-group-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmAddNewEmojiGroup(); });
+  document.getElementById('api-preset-name-input')?.addEventListener("keypress", function(e) { if(e.key === "Enter") confirmSaveApiPreset(); });
+  
+  updateClock();
+  setInterval(updateClock, 1000);
+
   applyChatBackground();
   applyDesktopWallpaper();
   applyAppIconStyle();
