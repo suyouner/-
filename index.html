@@ -1869,7 +1869,9 @@
         { icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "window.openMemoryModal()" }
       ];
       
-      if (char && !char.isGroup) {
+      if (char && char.isGroup) {
+          items.push({ icon: 'fas fa-gifts', color: '#f44336', name: '群红包', action: 'window.sendGroupRedPacket()' });
+      } else if (char) {
           items.push({ icon: 'fas fa-theater-masks', color:'#ff9800', name:'线下模式', action: "window.openOfflineModeSettings()" });
           items.push({ icon: 'fas fa-exchange-alt', color: '#fa9d3b', name: '转账', action: 'window.sendTransfer()' });
       }
@@ -1928,7 +1930,7 @@
     bar.appendChild(addEmojiBtn);
     
     const char = contacts.find(c => c.id === currentChatId);
-    if (char && char.isGroup) {
+    if (char) {
       if (currentEmojiGroup === '全部' || currentEmojiGroup === '默认') {
         const diceBtn = document.createElement('div');
         diceBtn.className = 'emoji-item';
@@ -2423,13 +2425,21 @@
   async function fetchRealWeather(city) {
     if(!city) return null;
     try {
-        const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+        const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=zh,en&format=json`);
         if(!geoResponse.ok) { console.error('Geocoding API error'); return null; }
         const geoData = await geoResponse.json();
         if(!geoData.results || geoData.results.length === 0) { console.error('City not found'); return null; }
         
-        const { latitude, longitude } = geoData.results[0];
-        return await fetchWeatherByCoords(latitude, longitude);
+        const location = geoData.results[0];
+        const { latitude, longitude } = location;
+
+        const displayName = [location.name, location.admin1, location.country].filter(Boolean).join(', ');
+        
+        const weatherString = await fetchWeatherByCoords(latitude, longitude);
+
+        if (weatherString) {
+            return { weather: weatherString, locationName: displayName };
+        }
 
     } catch(e) { 
         console.error("Weather fetch failed:", e);
@@ -2447,9 +2457,9 @@
 
       const statusDiv = document.getElementById('weather-status');
       statusDiv.innerText = "正在验证城市...";
-      const w = await fetchRealWeather(city);
-      if(w) {
-          statusDiv.innerText = `✅ 已定位到: ${city} ${w.trim()}`;
+      const result = await fetchRealWeather(city);
+      if(result) {
+          statusDiv.innerText = `✅ 已定位到: ${result.locationName} ${result.weather.trim()}`;
       } else {
           statusDiv.innerText = "⚠️ 城市验证失败";
       }
@@ -2581,14 +2591,26 @@ Now, based on the following chat history, generate the next response(s).`;
         if(char.syncReality) {
             if(char.useRealTime) systemPrompt += `\n[System Time: ${new Date().toLocaleString()}]`;
             if(char.useRealWeather) {
-                let weather = null;
+                let weatherInfo = null;
+                let locationName = "your location"; // Default for geolocation
+
                 if(char.latitude && char.longitude) {
-                    weather = await fetchWeatherByCoords(char.latitude, char.longitude);
-                    if(weather) systemPrompt += `\n[Real Weather at your location: ${weather.trim()}]`;
+                    weatherInfo = await fetchWeatherByCoords(char.latitude, char.longitude);
                 } else if (char.city) {
-                    weather = await fetchRealWeather(char.city);
-                    if(weather) systemPrompt += `\n[Real Weather in ${char.city}: ${weather.trim()}]`;
-                    else systemPrompt += `\n[User Location: ${char.city}]`;
+                    const weatherResult = await fetchRealWeather(char.city);
+                    if (weatherResult) {
+                        weatherInfo = weatherResult.weather;
+                        locationName = weatherResult.locationName;
+                    } else {
+                        locationName = char.city; // Fallback to user input city
+                    }
+                }
+                
+                if (weatherInfo) {
+                    systemPrompt += `\n[Real Weather in ${locationName}: ${weatherInfo.trim()}]`;
+                } else if (char.city) {
+                    // This case is for when weather fetch fails but we still have a city name
+                    systemPrompt += `\n[User Location: ${char.city}]`;
                 }
             }
         }
