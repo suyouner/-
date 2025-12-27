@@ -235,6 +235,8 @@
   .contact-info { flex: 1; overflow: hidden; }
   .contact-name { font-size: 16px; font-weight: 500; color: #000; }
   .contact-desc { font-size: 13px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contact-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; font-size: 12px; color: #b2b2b2; margin-left: 10px; }
+  .unread-badge { background: #ff3b30; color: white; font-size: 11px; font-weight: 500; border-radius: 50%; padding: 1px 5px; min-width: 18px; height: 18px; line-height: 16px; text-align: center; }
   .group-tag { font-size: 10px; background: #ddd; color: #666; padding: 1px 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 
   /* 聊天气泡 & 时间 */
@@ -494,6 +496,54 @@
   #system-toast.info {
     background: rgba(0,0,0,0.6);
   }
+  
+  /* Notification Banner */
+  #notification-banner {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 1002;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transform: translateY(-150%);
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+  }
+  #notification-banner.show {
+    transform: translateY(0);
+  }
+  #notif-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+  }
+  #notif-content {
+    overflow: hidden;
+  }
+  #notif-name {
+    font-weight: 500;
+    font-size: 14px;
+    color: #333;
+  }
+  #notif-message {
+    font-size: 13px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
 
 </style>
 </head>
@@ -514,6 +564,13 @@
 
 
 <div id="phone-shell">
+  <div id="notification-banner" onclick="onNotificationClick()">
+    <div id="notif-avatar"></div>
+    <div id="notif-content">
+      <div id="notif-name"></div>
+      <div id="notif-message"></div>
+    </div>
+  </div>
   <div id="system-toast"></div>
   
   <div id="image-lightbox" onclick="hideLightbox()" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; cursor: pointer;">
@@ -1150,12 +1207,15 @@
     temp: parseFloat(localStorage.getItem('apiTemp')) || 0.8
   };
   
-  let contacts = JSON.parse(localStorage.getItem('contacts')) || [{ id: 1, name: "男友", realname: "", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=Boy", prompt: "你是用户的男朋友，温柔体贴，偶尔会有点小霸道。", worldBookId: 'wb_1', hideAvatar: 'none', history: [], syncReality: false, useRealTime: false, useRealWeather: false, city: '', group: '特别关心', isGroup: false, isPinned: false, members: [], memory: { auto: false, limit: 20, summary: "" } }];
+  let contacts = JSON.parse(localStorage.getItem('contacts')) || [{ id: 1, name: "男友", realname: "", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=Boy", prompt: "你是用户的男朋友，温柔体贴，偶尔会有点小霸道。", worldBookId: 'wb_1', hideAvatar: 'none', history: [], syncReality: false, useRealTime: false, useRealWeather: false, city: '', group: '特别关心', isGroup: false, isPinned: false, members: [], memory: { auto: false, limit: 20, summary: "" }, unreadCount: 0 }];
   
-  // Data hydration for memory object in groups
+  // Data hydration
   contacts.forEach(c => {
     if (c.isGroup && !c.memory) {
       c.memory = { auto: false, limit: 20, summary: "" };
+    }
+    if (c.unreadCount === undefined) {
+      c.unreadCount = 0;
     }
   });
 
@@ -1185,6 +1245,9 @@
   let tempNewCharAvatar = '';
   let commentLongPressTimer = null;
   let editingMessageIndex = null;
+  let lastAutoMomentTimestamp = 0;
+  let lastDisplayedTimestamp = 0;
+  let notificationTimer = null;
 
   let passwordModalContext = {
       mode: 'verify', // 'verify' or 'set'
@@ -1196,18 +1259,31 @@
   const phoneShell = document.getElementById('phone-shell');
   if (isFullscreen) phoneShell.classList.add('fullscreen-mode');
 
-  function startBackgroundMomentGenerator() { 
-      if(autoGenInterval) clearInterval(autoGenInterval); 
-      if(!autoMomentEnabled) return; 
-      const eligibleChars = contacts.filter(c => !c.isGroup && c.autoMoment);
-      if(eligibleChars.length === 0) return;
-
-      autoGenInterval = setInterval(() => { 
-          if(Math.random() < 0.15) { 
-              const char = eligibleChars[Math.floor(Math.random() * eligibleChars.length)]; 
-              generateAIMomentInternal(char); 
-          } 
-      }, 60000); 
+  function startBackgroundMomentGenerator() {
+      if (autoGenInterval) clearInterval(autoGenInterval);
+      if (!autoMomentEnabled) return;
+  
+      autoGenInterval = setInterval(async () => {
+          const now = Date.now();
+          const minCooldown = 30 * 60 * 1000; // 30 minutes minimum cooldown
+  
+          if (now < lastAutoMomentTimestamp) { // Check if we are still in the cooldown period
+              return;
+          }
+  
+          const eligibleChars = contacts.filter(c => !c.isGroup && c.autoMoment);
+          if (eligibleChars.length === 0) return;
+  
+          if (Math.random() < 0.15) { // The chance to attempt a post during this interval
+              const char = eligibleChars[Math.floor(Math.random() * eligibleChars.length)];
+              const success = await generateAIMomentInternal(char);
+              if (success) {
+                  // Set a new random cooldown period between 30 and 120 minutes
+                  const randomCooldown = (30 + Math.random() * 90) * 60 * 1000;
+                  lastAutoMomentTimestamp = now + randomCooldown;
+              }
+          }
+      }, 60000); // Check every minute
   }
   startBackgroundMomentGenerator();
 
@@ -1722,37 +1798,61 @@
       const input = document.getElementById('msg-input'); 
       const text = input.value; 
       if(!text) return; 
+      const char = contacts.find(c => c.id === currentChatId); 
+      if (!char) return;
       
       let quoteData = null;
       if(replyingToMsg) {
           quoteData = { content: replyingToMsg.content, name: replyingToMsg.name };
       }
+      
+      const timestamp = Date.now();
+      const newMsg = { 
+        id: 'msg_' + timestamp, 
+        role: "user", 
+        content: text, 
+        isImage: false, 
+        timestamp: timestamp, 
+        quote: quoteData 
+      };
 
-      appendMessageUI(text, true, false, null, quoteData); 
-      input.value = ''; handleInput(); 
+      char.history.push(newMsg); 
+      localStorage.setItem('contacts', JSON.stringify(contacts)); 
+
+      appendMessageUI(newMsg, true);
+
+      input.value = ''; 
+      handleInput(); 
       cancelReply(); 
 
-      const char = contacts.find(c => c.id === currentChatId); 
-      if (char) { 
-          char.history.push({ id: 'msg_' + Date.now(), role: "user", content: text, isImage: false, timestamp: Date.now(), quote: quoteData }); 
-          localStorage.setItem('contacts', JSON.stringify(contacts)); 
-          checkMemoryAutoSummary(char); 
-      } 
+      checkMemoryAutoSummary(char); 
   }
   
   function sendDiceMessage() {
+    const char = contacts.find(c => c.id === currentChatId);
+    if (!char) return;
     const diceValue = Math.floor(Math.random() * 6) + 1;
     const content = `[DICE:${diceValue}]`;
-    appendMessageUI(content, true);
+    const timestamp = Date.now();
+    const newMsg = { id: 'msg_' + timestamp, role: "user", content: content, timestamp: timestamp };
     
-    const char = contacts.find(c => c.id === currentChatId);
-    if (char) {
-        char.history.push({ id: 'msg_' + Date.now(), role: "user", content: content, timestamp: Date.now() });
-        localStorage.setItem('contacts', JSON.stringify(contacts));
-    }
+    char.history.push(newMsg);
+    localStorage.setItem('contacts', JSON.stringify(contacts));
+    appendMessageUI(newMsg, true);
   }
 
-  function sendImageMessageOnly(src) { appendMessageUI(src, true, true); document.getElementById('action-panel').classList.remove('show'); const char = contacts.find(c => c.id === currentChatId); if (char) { char.history.push({ id: 'msg_' + Date.now(), role: "user", content: src, isImage: true, timestamp: Date.now() }); localStorage.setItem('contacts', JSON.stringify(contacts)); } }
+  function sendImageMessageOnly(src) { 
+    const char = contacts.find(c => c.id === currentChatId); 
+    if (!char) return;
+    const timestamp = Date.now();
+    const newMsg = { id: 'msg_' + timestamp, role: "user", content: src, isImage: true, timestamp: timestamp };
+    
+    char.history.push(newMsg); 
+    localStorage.setItem('contacts', JSON.stringify(contacts)); 
+
+    appendMessageUI(newMsg, true);
+    document.getElementById('action-panel').classList.remove('show'); 
+  }
 
   function sendTransfer() {
     const char = contacts.find(c => c.id === currentChatId);
@@ -1940,12 +2040,21 @@
     exitMultiSelectMode();
     document.getElementById('action-panel').classList.remove('show');
     cancelReply();
-    currentChatId = id; const u = contacts.find(c => c.id === id); if (!u) return; 
+    currentChatId = id; 
+    const u = contacts.find(c => c.id == id); 
+    if (!u) return; 
+
+    if (u.unreadCount) {
+        u.unreadCount = 0;
+        localStorage.setItem('contacts', JSON.stringify(contacts));
+    }
+
     document.getElementById('chat-title').innerText = u.name; 
     const c = document.getElementById('chat-messages'); c.innerHTML = ''; 
     c.onclick = () => { document.getElementById('action-panel').classList.remove('show'); };
     
     let lastTime = 0;
+    lastDisplayedTimestamp = 0;
     if(u.history && u.history.length > 0) { 
         u.history.forEach((msg, index) => { 
             const msgTime = msg.timestamp || 0;
@@ -1962,7 +2071,8 @@
                 const el = createMessageElement(msg, isSelf, isImg, index); 
                 c.appendChild(el); 
             } 
-        }); 
+        });
+        lastDisplayedTimestamp = lastTime;
     } 
     showScreen('screen-chat'); handleInput(); setTimeout(() => { c.scrollTop = c.scrollHeight; }, 100); 
   }
@@ -2054,24 +2164,31 @@
   }
 
 
-  function appendMessageUI(contentOrMsg, isSelf, isImage=false, debugInfo=null, quoteData=null) { 
+  function appendMessageUI(msgObject, isSelf, isDebug = false, debugInfo = null) { 
       const c = document.getElementById('chat-messages'); if (!c) return; 
-      if (debugInfo) { const div = document.createElement('div'); div.className = 'message msg-error'; div.innerHTML = `⚠️ ${contentOrMsg}<div class="msg-debug">${debugInfo}</div>`; c.appendChild(div); c.scrollTop = c.scrollHeight; return; } 
       
-      const char = contacts.find(c => c.id === currentChatId); if (!char) return; const index = char.history ? char.history.length : 0; 
+      if (isDebug) { 
+        const div = document.createElement('div'); 
+        div.className = 'message msg-error'; 
+        div.innerHTML = `⚠️ ${msgObject.content}<div class="msg-debug">${debugInfo}</div>`; 
+        c.appendChild(div); 
+        c.scrollTop = c.scrollHeight; 
+        return; 
+      } 
       
-      let msgObject;
-      if (typeof contentOrMsg === 'string') {
-        msgObject = { content: contentOrMsg, roleName: null, quote: quoteData, id: 'temp_' + Date.now() };
-      } else {
-        msgObject = contentOrMsg;
+      const msgTime = msgObject.timestamp;
+      if (msgTime - lastDisplayedTimestamp > 5 * 60 * 1000) {
+          c.insertAdjacentHTML('beforeend', `<div class="chat-time-label">${formatChatTime(msgTime)}</div>`);
       }
+      lastDisplayedTimestamp = msgTime;
+
+      const char = contacts.find(c => c.id === currentChatId); if (!char) return; 
+      const index = char.history ? char.history.length - 1 : 0; 
       
-      const el = createMessageElement(msgObject, isSelf, isImage, index); 
+      const el = createMessageElement(msgObject, isSelf, msgObject.isImage, index); 
       c.appendChild(el); 
 
-      // Animate dice for new messages
-      if (!isImage && !debugInfo && msgObject.content && msgObject.content.startsWith('[DICE:')) {
+      if (msgObject.content && msgObject.content.startsWith('[DICE:')) {
           const diceIconEl = el.querySelector('.msg-dice i');
           if (diceIconEl) {
               const value = parseInt(msgObject.content.match(/\[DICE:(\d)\]/)[1], 10);
@@ -2081,7 +2198,7 @@
                   const randomIcon = diceIcons[Math.floor(Math.random() * 6)];
                   diceIconEl.className = `fas fa-dice-${randomIcon}`;
                   animationCount++;
-                  if (animationCount >= 10) { // Animate for 1 second
+                  if (animationCount >= 10) { 
                       clearInterval(animationInterval);
                       diceIconEl.className = `fas fa-dice-${diceIcons[value - 1]}`;
                   }
@@ -2095,7 +2212,6 @@
   async function fetchRealWeather(city) {
     if(!city) return null;
     try {
-        // 1. Geocoding: Get coordinates for the city
         const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
         if(!geoResponse.ok) { console.error('Geocoding API error'); return null; }
         const geoData = await geoResponse.json();
@@ -2103,7 +2219,6 @@
         
         const { latitude, longitude } = geoData.results[0];
 
-        // 2. Fetch weather using coordinates
         const weatherResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`);
         if(!weatherResponse.ok) { console.error('Weather API error'); return null; }
         const weatherData = await weatherResponse.json();
@@ -2308,7 +2423,7 @@ Now, based on the following chat history, generate the next response(s).`;
     let msgs = [{ role: "system", content: systemPrompt }, ...recentHistory];
     
     if(!config.key) {
-        appendMessageUI("请先填写 API Key", false, false, "设置 -> API Key");
+        appendMessageUI({ content: "请先填写 API Key", timestamp: Date.now()}, false, true, "设置 -> API Key");
         document.getElementById('chat-title').innerText = originalTitle;
         return;
     }
@@ -2332,7 +2447,7 @@ Now, based on the following chat history, generate the next response(s).`;
 
     } catch(e) { 
       console.error('AI请求错误:', e);
-      appendMessageUI("接收失败", false, false, e.message); 
+      appendMessageUI({ content: "接收失败", timestamp: Date.now() }, false, true, e.message); 
       document.getElementById('chat-title').innerText = originalTitle;
     }
   }
@@ -2353,6 +2468,8 @@ Now, based on the following chat history, generate the next response(s).`;
           processReplySequence(char, parts, index + 1, originalTitle);
           return;
       }
+      
+      const timestamp = Date.now();
 
       if(char.isGroup) {
           const splitIdx = content.indexOf('::');
@@ -2369,10 +2486,16 @@ Now, based on the following chat history, generate the next response(s).`;
           if (content === '[CMD:ROLL_DICE]') {
               const diceValue = Math.floor(Math.random() * 6) + 1;
               const diceContent = `[DICE:${diceValue}]`;
-              const newMsg = { id: 'msg_' + Date.now(), role: "assistant", content: diceContent, isImage: false, roleName: senderName, timestamp: Date.now(), quote: null };
+              const newMsg = { id: 'msg_' + timestamp, role: "assistant", content: diceContent, isImage: false, roleName: senderName, timestamp: timestamp, quote: null };
               char.history.push(newMsg);
-              appendMessageUI(newMsg, false, false, null);
               
+              const currentScreen = document.querySelector('.screen.active').id;
+              if (currentScreen === 'screen-chat' && currentChatId === char.id) {
+                  appendMessageUI(newMsg, false);
+              } else {
+                  handleBackgroundMessage(char, diceContent);
+              }
+
               setTimeout(() => {
                   processReplySequence(char, parts, index + 1, originalTitle);
               }, 500 + Math.random() * 800);
@@ -2389,14 +2512,29 @@ Now, based on the following chat history, generate the next response(s).`;
       }
       
       if(content) {
-          const newMsg = { id: 'msg_' + Date.now(), role: "assistant", content: content, isImage: false, roleName: senderName, timestamp: Date.now(), quote: quoteData };
+          const newMsg = { id: 'msg_' + timestamp, role: "assistant", content: content, isImage: false, roleName: senderName, timestamp: timestamp, quote: quoteData };
           char.history.push(newMsg);
-          appendMessageUI(newMsg, false, false, null);
+
+          const currentScreen = document.querySelector('.screen.active').id;
+          if (currentScreen === 'screen-chat' && currentChatId === char.id) {
+            appendMessageUI(newMsg, false);
+          } else {
+            handleBackgroundMessage(char, content);
+          }
       }
 
       setTimeout(() => {
           processReplySequence(char, parts, index + 1, originalTitle);
       }, 500 + Math.random() * 800);
+  }
+
+  function handleBackgroundMessage(char, content) {
+    char.unreadCount = (char.unreadCount || 0) + 1;
+    localStorage.setItem('contacts', JSON.stringify(contacts));
+    showNotification(char, content);
+    if (document.getElementById('tab-chat').classList.contains('active')) {
+        renderContacts();
+    }
   }
 
   async function handleAICommands(reply, char) {
@@ -2580,7 +2718,17 @@ Now, based on the following chat history, generate the next response(s).`;
         let lastMsg = user.prompt; 
         if(user.history && user.history.length > 0) { const lastItem = user.history[user.history.length - 1]; if(lastItem.isImage) { lastMsg = "[图片]"; } else if (lastItem.content && lastItem.content.startsWith('[TRANSFER]')) { lastMsg = '[转账]'; } else { lastMsg = lastItem.content; } } 
         let groupTag = user.isGroup ? `<span class="group-tag">群聊</span>` : '';
-        div.innerHTML = `<div class="contact-avatar" style="background-image: url('${user.avatar}')"></div><div class="contact-info"><div class="contact-name">${groupTag}${user.name}</div><div class="contact-desc">${lastMsg}</div></div>`; c.appendChild(div); 
+        div.innerHTML = `
+          <div class="contact-avatar" style="background-image: url('${user.avatar}')"></div>
+          <div class="contact-info">
+            <div class="contact-name">${groupTag}${user.name}</div>
+            <div class="contact-desc">${lastMsg}</div>
+          </div>
+          <div class="contact-meta">
+            ${user.unreadCount > 0 ? `<span class="unread-badge">${user.unreadCount}</span>` : ''}
+          </div>
+        `; 
+        c.appendChild(div); 
     }); 
   }
 
@@ -3477,46 +3625,66 @@ Now, based on the following chat history, generate the next response(s).`;
   }
 
   async function generateAIMomentInternal(char) {
-    if (!config.key) { console.error("No API key for moment generation."); return; }
-    
-    const recentHistory = char.history ? char.history.slice(-10).map(m => {
-        if(m.role === 'user') return `${savedUserName}: ${m.content}`;
-        return `${char.name}: ${m.content}`;
-    }).join('\n') : "No recent conversation.";
-
-    const prompt = `System: You are ${char.name}. Your persona is "${char.prompt}". 
-    Here is the recent chat history with ${savedUserName} for context:
-    ${recentHistory}
-    
-    Task: Based on your persona AND the recent conversation, generate a short, realistic social media post (like WeChat Moments). It can be about daily life, feelings, or a shared picture. Keep it concise.
-    Example: "今天天气真好，出门散步。" or "又是一个加班的夜晚，好累啊。"
-    You can also generate a post with an image. To do this, provide an image description in the format [IMAGE: a cat sleeping on a sofa]. The image will be generated automatically.
-    Do not add your name to the post. Just provide the content.`;
-    
-    try {
-        const res = await fetch(`${getCleanBaseUrl(config.url)}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` }, body: JSON.stringify({ model: config.model, messages: [{ role: 'user', content: prompt }], temperature: 1.2 }) });
-        if (!res.ok) return;
-        const data = await res.json();
-        let content = data.choices[0].message.content.replace(/^["']|["']$/g, '');
-        
-        let imageUrl = '';
-        const imageMatch = content.match(/\[IMAGE:\s*(.*?)\]/);
-        if (imageMatch) {
-            const imagePrompt = imageMatch[1];
-            content = content.replace(imageMatch[0], '').trim();
-            imageUrl = `https://source.unsplash.com/400x300/?${encodeURIComponent(imagePrompt)}`;
-        }
-        
-        const newMoment = { id: 'm_' + Date.now(), authorId: char.id, content: content, image: imageUrl, likes: [], comments: [], timestamp: Date.now(), visibleTo: 'all' };
-        moments.unshift(newMoment);
-        saveMoments();
-        
-        if(document.getElementById('tab-moments').classList.contains('active')) {
-            renderMoments();
-        }
-        showToast(`${char.name} 发布了新动态`, 'success');
-
-    } catch(e) { console.error("AI moment gen error:", e); }
+      if (!config.key) {
+          console.error("No API key for moment generation.");
+          return false;
+      }
+  
+      const recentHistory = char.history ? char.history.slice(-10).map(m => {
+          if (m.role === 'user') return `${savedUserName}: ${m.content}`;
+          return `${char.name}: ${m.content}`;
+      }).join('\n') : "No recent conversation.";
+  
+      const prompt = `System: You are ${char.name}. Your persona is "${char.prompt}".
+      The current time is ${new Date().toLocaleString('zh-CN')}. Use this to inform the context of your post (e.g., good morning, late night thoughts, etc.).
+  
+      Here is the recent chat history with ${savedUserName} for context:
+      ${recentHistory}
+  
+      Task: Based on your persona, the current time, AND the recent conversation, generate a short, realistic, **text-only** social media post (like WeChat Moments).
+      **DO NOT include any images or image descriptions in your post (do not use "[IMAGE: ...]").**
+      Keep it concise and natural. Do not add your name to the post. Just provide the content.`;
+  
+      try {
+          const res = await fetch(`${getCleanBaseUrl(config.url)}/chat/completions`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
+              body: JSON.stringify({ model: config.model, messages: [{ role: 'user', content: prompt }], temperature: 1.2 })
+          });
+          if (!res.ok) return false;
+  
+          const data = await res.json();
+          let content = data.choices[0].message.content.replace(/^["']|["']$/g, '');
+          content = content.replace(/\[IMAGE:.*?\]/g, '').trim();
+  
+          if (!content) {
+              console.log("AI generated an empty moment post, skipping.");
+              return false;
+          }
+  
+          const newMoment = {
+              id: 'm_' + Date.now(),
+              authorId: char.id,
+              content: content,
+              image: '', // Image is always empty now
+              likes: [],
+              comments: [],
+              timestamp: Date.now(),
+              visibleTo: 'all'
+          };
+          moments.unshift(newMoment);
+          saveMoments();
+  
+          if (document.getElementById('tab-moments').classList.contains('active')) {
+              renderMoments();
+          }
+          showToast(`${char.name} 发布了新动态`, 'success');
+          return true; // Success
+  
+      } catch (e) {
+          console.error("AI moment gen error:", e);
+          return false; // Failure
+      }
   }
 
   async function triggerAICommentReply(moment, userComment) {
@@ -3738,6 +3906,31 @@ Now, based on the following chat history, generate the next response(s).`;
       const minutes = now.getMinutes().toString().padStart(2, '0');
       const timeString = `${hours}:${minutes}`;
       document.querySelectorAll('.status-bar-time').forEach(el => el.innerText = timeString);
+  }
+
+  function showNotification(char, msgContent) {
+    clearTimeout(notificationTimer);
+    const banner = document.getElementById('notification-banner');
+    document.getElementById('notif-avatar').style.backgroundImage = `url(${char.avatar})`;
+    document.getElementById('notif-name').innerText = char.name;
+    document.getElementById('notif-message').innerText = msgContent;
+    banner.dataset.chatId = char.id;
+    banner.classList.add('show');
+    notificationTimer = setTimeout(hideNotification, 4000);
+  }
+
+  function hideNotification() {
+    const banner = document.getElementById('notification-banner');
+    banner.classList.remove('show');
+  }
+
+  function onNotificationClick() {
+    const banner = document.getElementById('notification-banner');
+    const chatId = banner.dataset.chatId;
+    if (chatId) {
+      hideNotification();
+      openChat(chatId);
+    }
   }
 
   if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; }
