@@ -251,6 +251,7 @@
   .message { max-width: 70%; padding: 10px 14px; border-radius: 6px; font-size: 16px; line-height: 1.4; background: #fff; position: relative; word-wrap: break-word; user-select: text; }
   .msg-quote { background: rgba(0,0,0,0.05); border-left: 3px solid #ccc; padding: 4px 8px; margin-bottom: 5px; font-size: 13px; color: #666; border-radius: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .msg-row.sent .message { background: var(--bubble-me); color: #000; }
+  .msg-thought { color: #999; font-style: italic; }
   
   .msg-red-packet { background: #fa9d3b !important; color: white !important; display: flex; align-items: center; width: 220px; }
   .msg-red-packet i { font-size: 24px; color: #f7dd4a; margin-right: 10px;}
@@ -542,6 +543,15 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .offline-indicator {
+    font-size: 10px;
+    color: #999;
+    background: #eee;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-left: 5px;
+    vertical-align: middle;
   }
 
 
@@ -1172,6 +1182,60 @@
       </div>
     </div>
   </div>
+  
+  <div id="modal-offline-settings" class="modal">
+    <div class="modal-content">
+      <h3>线下模式设置</h3>
+      <div class="form-group" style="padding:0; box-shadow:none;">
+        <div class="form-row-item">
+          <label style="font-weight:bold;">启用线下模式</label>
+          <label class="switch">
+            <input type="checkbox" id="offline-mode-toggle" onchange="toggleOfflineOptions(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div id="offline-options-container" style="display:none;">
+        <div class="form-group" style="padding:0; box-shadow:none;">
+          <div class="form-row-item">
+            <label>显示心理描写</label>
+            <label class="switch">
+              <input type="checkbox" id="offline-show-thoughts">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="form-item">
+            <label>你的视角</label>
+            <select id="offline-user-pov" class="form-select" style="border:1px solid #ddd; border-radius:6px; padding:8px;">
+              <option value="second">第二人称 (你)</option>
+              <option value="first">第一人称 (我)</option>
+              <option value="third">第三人称 (他/她)</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>角色视角</label>
+            <select id="offline-char-pov" class="form-select" style="border:1px solid #ddd; border-radius:6px; padding:8px;">
+              <option value="first">第一人称 (我)</option>
+              <option value="third">第三人称 (他/她)</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>回复字数</label>
+            <input type="number" id="offline-word-count" class="form-input" value="150" style="border-bottom:1px solid #ddd;">
+          </div>
+          <div class="form-item">
+            <label>文风 (从世界书选取)</label>
+            <select id="offline-style-wb" class="form-select" style="border:1px solid #ddd; border-radius:6px; padding:8px;"></select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-button-group" style="margin-top:10px;">
+        <button class="btn-secondary" onclick="closeModal('modal-offline-settings')">取消</button>
+        <button class="btn-primary" onclick="saveOfflineModeSettings()">保存</button>
+      </div>
+    </div>
+  </div>
+
 
 </div>
 
@@ -1216,6 +1280,16 @@
     }
     if (c.unreadCount === undefined) {
       c.unreadCount = 0;
+    }
+    if (c.offlineMode === undefined) {
+        c.offlineMode = {
+            enabled: false,
+            showThoughts: true,
+            userPov: 'second',
+            charPov: 'first',
+            wordCount: 150,
+            styleWbId: ''
+        };
     }
   });
 
@@ -1686,7 +1760,8 @@
 
       let items = [
         { icon: 'fas fa-image', color:'#333', name:'相册', action: "document.getElementById('img-send-upload').click()" },
-        { icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" }
+        { icon: 'fas fa-brain', color:'#2196f3', name:'记忆', action: "openMemoryModal()" },
+        { icon: 'fas fa-theater-masks', color:'#ff9800', name:'线下模式', action: "openOfflineModeSettings()" }
       ];
       
       if (char && char.isGroup) {
@@ -2048,8 +2123,9 @@
         u.unreadCount = 0;
         localStorage.setItem('contacts', JSON.stringify(contacts));
     }
+    
+    updateChatTitleIndicator();
 
-    document.getElementById('chat-title').innerText = u.name; 
     const c = document.getElementById('chat-messages'); c.innerHTML = ''; 
     c.onclick = () => { document.getElementById('action-panel').classList.remove('show'); };
     
@@ -2072,7 +2148,9 @@
                 c.appendChild(el); 
             } 
         });
-        lastDisplayedTimestamp = lastTime;
+        if (u.history.length > 0) {
+          lastDisplayedTimestamp = u.history[u.history.length-1].timestamp;
+        }
     } 
     showScreen('screen-chat'); handleInput(); setTimeout(() => { c.scrollTop = c.scrollHeight; }, 100); 
   }
@@ -2144,8 +2222,12 @@
             </div>
         `;
     } else { 
+      let processedContent = content;
+      if (char.offlineMode && char.offlineMode.enabled) {
+          processedContent = processedContent.replace(/\((.*?)\)/g, '<span class="msg-thought">($1)</span>');
+      }
       const quoteHtml = quote ? `<div class="msg-quote">${quote.name}: ${quote.content}</div>` : '';
-      bubbleHtml = `<div class="message">${quoteHtml}${content}</div>`; 
+      bubbleHtml = `<div class="message">${quoteHtml}${processedContent}</div>`; 
     } 
     
     if(char.isGroup && !isSelf && roleName) {
@@ -2179,8 +2261,8 @@
       const msgTime = msgObject.timestamp;
       if (msgTime - lastDisplayedTimestamp > 5 * 60 * 1000) {
           c.insertAdjacentHTML('beforeend', `<div class="chat-time-label">${formatChatTime(msgTime)}</div>`);
+          lastDisplayedTimestamp = msgTime;
       }
-      lastDisplayedTimestamp = msgTime;
 
       const char = contacts.find(c => c.id === currentChatId); if (!char) return; 
       const index = char.history ? char.history.length - 1 : 0; 
@@ -2322,8 +2404,39 @@
     }
     
     let systemPrompt = "";
-    
-    if (char.isGroup) {
+
+    if (char.offlineMode && char.offlineMode.enabled) {
+        const { showThoughts, userPov, charPov, wordCount, styleWbId } = char.offlineMode;
+        const povMap = { first: '第一人称', second: '第二人称', third: '第三人称' };
+        
+        let styleGuideText = "无特定风格。";
+        if (styleWbId) {
+            const wb = worldBooks.find(b => b.id === styleWbId);
+            if (wb) styleGuideText = wb.content;
+        }
+
+        systemPrompt = `You are now in a narrative roleplaying session as ${char.name}.
+Your persona is: ${char.prompt}.
+You are interacting with ${savedUserName}, whose persona is: "${savedUserPersona}".
+
+**SESSION RULES:**
+1.  **Point of View:**
+    -   Narrate your character's actions and thoughts from the **${povMap[charPov]}**.
+    -   Refer to the user as **${povMap[userPov]}**.
+2.  **Output Format:**
+    -   Combine actions, dialogue, and internal thoughts into a single, flowing narrative paragraph.
+    -   Enclose all spoken dialogue in double quotes (" ").
+    -   **Crucially, enclose all internal thoughts and psychological descriptions in parentheses, like this: (I wondered what they meant by that.)**
+3.  **Psychological Descriptions:** You **${showThoughts ? 'MUST' : 'MUST NOT'}** include psychological descriptions (internal thoughts).
+4.  **Word Count:** Aim for a response length of approximately **${wordCount}** words.
+5.  **Writing Style:** Emulate the tone and style of the following text:
+    ---
+    ${styleGuideText}
+    ---
+
+Now, continue the story based on the recent chat history.`;
+
+    } else if (char.isGroup) {
         let membersDesc = "";
         if (char.members && char.members.length > 0) {
             char.members.forEach(mid => {
@@ -2340,29 +2453,16 @@
         }
         
         systemPrompt = `You are an AI Group Chat Master, responsible for orchestrating a realistic and engaging conversation between multiple AI characters and a human user.
-
-### Group Info
 - Group Name: "${char.name}"
 - Human User: "${savedUserName}" (Persona: "${savedUserPersona}"). You MUST NOT generate responses for the user.
-`;
-        if (char.memory && char.memory.summary) {
-            systemPrompt += `\n### Group Memory\n${char.memory.summary}\n`;
-        }
-        systemPrompt += `
-### AI Characters in this group:
-${membersDesc}
-### Your Task
-Your goal is to generate the next turn(s) in the conversation. Read the recent chat history and decide which AI character(s) should speak. A good response should be logical, in-character, and move the conversation forward.
-
-### Rules for Generating Responses:
-1.  **Logical Flow:** Characters should react to what was just said. If the user asks a question to a specific character, that character should answer. If the topic is general, decide who is most likely to comment based on their persona.
-2.  **In-Character:** Every message MUST reflect the persona of the character speaking.
-3.  **Turn-Taking:** It's okay for one character to speak, or for a few characters to respond in a quick sequence if it feels natural (e.g., reacting to a joke). Crucially, a single character can send multiple consecutive messages to simulate realistic typing behavior. Avoid having everyone speak at once. Don't always have the same person speak.
-4.  **Formatting:** You MUST use the following format. Separate each individual message bubble with '|||'.
-    \`CharacterName::Message content.|||AnotherCharacterName::Their message.|||CharacterName::A second message from the first character.\`
-5.  **DO NOT** generate a response for "${savedUserName}".
-6.  **Special Actions**: To roll a dice, a character must output ONLY \`[CMD:ROLL_DICE]\`. For example: \`CharacterName::[CMD:ROLL_DICE]\`
-
+- AI Characters in this group:\n${membersDesc}
+- Your Task: Generate the next turn(s) in the conversation.
+- Rules:
+1.  **Logical & In-Character:** React to what was just said based on each character's persona.
+2.  **Turn-Taking:** Decide which character(s) should speak. A single character can send multiple consecutive messages. Avoid having everyone speak at once.
+3.  **Formatting:** You MUST use the format: \`CharacterName::Message content.|||AnotherCharacterName::Their message.\`
+4.  **DO NOT** generate a response for "${savedUserName}".
+5.  **Special Actions**: To roll a dice, a character must output ONLY \`[CMD:ROLL_DICE]\`. Example: \`CharacterName::[CMD:ROLL_DICE]\`
 Now, based on the following chat history, generate the next response(s).`;
     } else {
         systemPrompt = `You are now roleplaying as ${char.name}. Strictly adhere to the following persona, tone, and memory. Do NOT break character.\n\n### Persona for ${char.name}:\n${char.prompt}`;
@@ -2381,26 +2481,7 @@ Now, based on the following chat history, generate the next response(s).`;
         if(char.worldBookId) { const wb = worldBooks.find(b => b.id === char.worldBookId); if(wb) systemPrompt += `\n\n[World Info]:\n${wb.content}`; }
         if(char.memory && char.memory.summary) systemPrompt += `\n[Long-term Memory]: ${char.memory.summary}`;
         
-        const groupsMemberOf = contacts.filter(c => c.isGroup && c.members.includes(char.id));
-        if (groupsMemberOf.length > 0) {
-            let groupActivityContext = "\n\n### Recent Group Activity:\n";
-            groupsMemberOf.forEach(group => {
-                const last5msgs = group.history.slice(-5).map(m => {
-                    const sender = m.role === 'user' ? savedUserName : m.roleName || group.name;
-                    return `(${group.name}) ${sender}: ${m.content}`;
-                }).join('\n');
-                if(last5msgs) groupActivityContext += `${last5msgs}\n`;
-            });
-            systemPrompt += groupActivityContext;
-        }
-
-        let charMoments = moments.filter(m => m.authorId == char.id).slice(0, 3);
-        if(charMoments.length > 0) {
-            systemPrompt += `\n\n### Your Recent Moments History (for context):\n`;
-            charMoments.forEach((m, i) => { systemPrompt += `${i+1}. "${m.content}" (ID: ${m.id})\n`; });
-        }
-        
-        systemPrompt += `\n\n### Instructions:\n1. Reply naturally and in character. \n2. You can send multiple separate messages (bubbles) to simulate real chatting speed. Use '|||' to separate them. Example: "Haha"|||"That is funny"\n3. **Quoting**: You can quote the user's message if specific context is needed. To quote, start your message with \`[QUOTE: quoted_text]\`. Example: \`[QUOTE: I like cats] Me too!\`.\n4. **Handling Transfers**: When you receive a transfer from the user (indicated by a message ID), you should decide whether to accept or return it. You MUST use one of the following commands. You can also provide a conversational reply in the same turn separated by '|||'. Example: \`[CMD:ACCEPT_TRANSFER:msg_12345]|||Thanks babe!\`\n5. Other commands: [CMD:DELETE_MOMENT:{moment_id_or_keyword}], [CMD:CHANGE_AVATAR], [CMD:SEND_TRANSFER:{amount}], [CMD:ROLL_DICE].`;
+        systemPrompt += `\n\n### Instructions:\n1. Reply naturally and in character. \n2. You can send multiple separate messages (bubbles) to simulate real chatting speed. Use '|||' to separate them. Example: "Haha"|||"That is funny"\n3. Other commands: [CMD:DELETE_MOMENT:{moment_id_or_keyword}], [CMD:CHANGE_AVATAR], [CMD:SEND_TRANSFER:{amount}], [CMD:ROLL_DICE].`;
     }
     
     const contextLength = char.memory?.limit || 20;
@@ -2424,7 +2505,7 @@ Now, based on the following chat history, generate the next response(s).`;
     
     if(!config.key) {
         appendMessageUI({ content: "请先填写 API Key", timestamp: Date.now()}, false, true, "设置 -> API Key");
-        document.getElementById('chat-title').innerText = originalTitle;
+        updateChatTitleIndicator();
         return;
     }
     
@@ -2448,7 +2529,7 @@ Now, based on the following chat history, generate the next response(s).`;
     } catch(e) { 
       console.error('AI请求错误:', e);
       appendMessageUI({ content: "接收失败", timestamp: Date.now() }, false, true, e.message); 
-      document.getElementById('chat-title').innerText = originalTitle;
+      updateChatTitleIndicator();
     }
   }
 
@@ -2456,7 +2537,7 @@ Now, based on the following chat history, generate the next response(s).`;
       if(index >= parts.length) {
           localStorage.setItem('contacts', JSON.stringify(contacts));
           checkMemoryAutoSummary(char);
-          if (originalTitle) document.getElementById('chat-title').innerText = originalTitle;
+          if (originalTitle) updateChatTitleIndicator();
           return;
       }
 
@@ -2502,7 +2583,6 @@ Now, based on the following chat history, generate the next response(s).`;
               return; 
           }
       } else {
-          // Check for quotes in non-group chat
           const quoteMatch = content.match(/^\[QUOTE:\s*(.*?)\]/);
           if(quoteMatch) {
               quoteData = { name: savedUserName, content: quoteMatch[1] };
@@ -3344,7 +3424,9 @@ Now, based on the following chat history, generate the next response(s).`;
           isGroup: false,
           isPinned: false,
           members: [],
-          memory: { auto: false, limit: 20, summary: "" }
+          memory: { auto: false, limit: 20, summary: "" },
+          unreadCount: 0,
+          offlineMode: { enabled: false, showThoughts: true, userPov: 'second', charPov: 'first', wordCount: 150, styleWbId: '' }
       };
       contacts.push(newChar);
       localStorage.setItem('contacts', JSON.stringify(contacts));
@@ -3397,7 +3479,8 @@ Now, based on the following chat history, generate the next response(s).`;
         history: [],
         prompt: '',
         isPinned: false,
-        memory: { auto: false, limit: 20, summary: "" }
+        memory: { auto: false, limit: 20, summary: "" },
+        unreadCount: 0
     };
 
     contacts.unshift(newGroup);
@@ -3513,7 +3596,7 @@ Now, based on the following chat history, generate the next response(s).`;
     
     localStorage.setItem('contacts', JSON.stringify(contacts));
     showToast('保存成功', 'success');
-    document.getElementById('chat-title').innerText = char.name;
+    updateChatTitleIndicator();
     backToChat();
   }
 
@@ -3932,6 +4015,75 @@ Now, based on the following chat history, generate the next response(s).`;
       openChat(chatId);
     }
   }
+  
+  function openOfflineModeSettings() {
+    const char = contacts.find(c => c.id === currentChatId);
+    if (!char) return;
+
+    const settings = char.offlineMode;
+    document.getElementById('offline-mode-toggle').checked = settings.enabled;
+    toggleOfflineOptions(settings.enabled);
+    
+    document.getElementById('offline-show-thoughts').checked = settings.showThoughts;
+    document.getElementById('offline-user-pov').value = settings.userPov;
+    document.getElementById('offline-char-pov').value = settings.charPov;
+    document.getElementById('offline-word-count').value = settings.wordCount;
+
+    const styleSelect = document.getElementById('offline-style-wb');
+    styleSelect.innerHTML = '<option value="">默认风格</option>';
+    worldBooks.forEach(wb => {
+        const opt = document.createElement('option');
+        opt.value = wb.id;
+        opt.innerText = `${wb.title} (${wb.group})`;
+        if (settings.styleWbId === wb.id) opt.selected = true;
+        styleSelect.appendChild(opt);
+    });
+
+    document.getElementById('action-panel').classList.remove('show');
+    document.getElementById('modal-offline-settings').style.display = 'flex';
+  }
+
+  function toggleOfflineOptions(enabled) {
+      document.getElementById('offline-options-container').style.display = enabled ? 'block' : 'none';
+  }
+  
+  function saveOfflineModeSettings() {
+    const char = contacts.find(c => c.id === currentChatId);
+    if (!char) return;
+
+    char.offlineMode.enabled = document.getElementById('offline-mode-toggle').checked;
+    char.offlineMode.showThoughts = document.getElementById('offline-show-thoughts').checked;
+    char.offlineMode.userPov = document.getElementById('offline-user-pov').value;
+    char.offlineMode.charPov = document.getElementById('offline-char-pov').value;
+    char.offlineMode.wordCount = parseInt(document.getElementById('offline-word-count').value, 10) || 150;
+    char.offlineMode.styleWbId = document.getElementById('offline-style-wb').value;
+
+    localStorage.setItem('contacts', JSON.stringify(contacts));
+    closeModal('modal-offline-settings');
+    updateChatTitleIndicator();
+    showToast('线下模式设置已保存', 'success');
+  }
+  
+  function updateChatTitleIndicator() {
+      const char = contacts.find(c => c.id === currentChatId);
+      const titleEl = document.getElementById('chat-title');
+      if (!char || !titleEl) return;
+      
+      let existingIndicator = titleEl.querySelector('.offline-indicator');
+      if (existingIndicator) {
+          existingIndicator.remove();
+      }
+
+      titleEl.innerText = char.name; // Reset name
+      
+      if (char.offlineMode && char.offlineMode.enabled) {
+          const indicator = document.createElement('span');
+          indicator.className = 'offline-indicator';
+          indicator.innerText = '线下';
+          titleEl.appendChild(indicator);
+      }
+  }
+
 
   if (typeof currentGroupView === 'undefined') { currentGroupView = '全部'; }
   document.getElementById('msg-input').addEventListener("keypress", function(e) { if(e.key === "Enter") sendMessage(); });
