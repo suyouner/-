@@ -2708,16 +2708,16 @@ function renderMoments() {
             <div class="m-content">
                 <div class="m-name">${poster.name}</div>
                 <div class="m-text">${m.text}</div>
-                ${m.image ? `<img src="${m.image}" class="m-img" onclick="showLightbox('${m.image}')">` : ''}
+                ${m.image ? `<img src="${m.image}" class="m-img" onclick="window.showLightbox('${m.image}')">` : ''}
                 <div class="m-meta">
                     <span>${formatContactTime(m.timestamp)}</span>
-                    ${m.charId === 'user' ? `<span class="m-del-btn" onclick="deleteMoment('${m.id}')">删除</span>` : ''}
+                    ${m.charId === 'user' ? `<span class="m-del-btn" onclick="window.deleteMoment('${m.id}')">删除</span>` : ''}
                     <div class="m-actions-toolbar">
-                        <div class="m-action-item" onclick="likeMoment('${m.id}', this)">
+                        <div class="m-action-item" onclick="window.likeMoment('${m.id}', this)">
                            <i class="${isLiked ? 'fas' : 'far'} fa-heart"></i>
                            <span>${m.likes.length > 0 ? m.likes.length : '点赞'}</span>
                         </div>
-                        <div class="m-action-item" onclick="commentMoment('${m.id}')">
+                        <div class="m-action-item" onclick="window.commentMoment('${m.id}')">
                            <i class="far fa-comment-dots"></i>
                            <span>${m.comments.length > 0 ? m.comments.length : '评论'}</span>
                         </div>
@@ -3132,9 +3132,15 @@ function sendMomentComment() {
     setTimeout(() => triggerAIComments(moment, newComment), 2000 + Math.random() * 3000);
 };
 
-
 function menuActionComment(action, event, mid, cid) {
-    event.stopPropagation();
+    // This function handles the context menu for comments.
+    // The `event` object is only passed on the initial 'long-press' action.
+    // For the 'delete' action called from the menu's onclick, `event` is undefined.
+    // We must check if `event` exists before trying to use it.
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     const menu = document.getElementById('comment-context-menu');
     
     if (action === 'long-press') {
@@ -3151,9 +3157,10 @@ function menuActionComment(action, event, mid, cid) {
         if (rect.bottom > shellRect.bottom) menu.style.top = `${event.pageY - rect.height}px`;
 
     } else if (action === 'delete') {
-        menu.style.display = 'none';
+        if (menu) menu.style.display = 'none';
         if (!selectedCommentMid || !selectedCommentId) {
-            showToast('无法删除评论', 'error');
+            // This might happen if the state is lost, handle gracefully.
+            showToast('无法删除评论，请重试', 'error');
             return;
         }
 
@@ -3164,10 +3171,11 @@ function menuActionComment(action, event, mid, cid) {
             renderMoments();
             showToast('评论已删除', 'success');
         }
+        // Reset state variables after action
         selectedCommentMid = null;
         selectedCommentId = null;
     }
-};
+}
 
 function saveCharDetailSettings() {
     const char = contacts.find(c => c.id === currentChatId);
@@ -3384,124 +3392,106 @@ function saveAddrGroupMove() {
 async function triggerAIComments(moment, lastComment) {
     if (!config.key) return;
 
-    const poster = contacts.find(c => c.id === moment.charId);
-    if (!poster) return;
-
-    // 获取可见该朋友圈的好友
-    let visibleFriends = [];
+    const poster = contacts.find(c => c.id === moment.charId) || { id: 'user', name: savedUserName };
     
+    // 1. Get all friends who can see this moment
+    let visibleFriends;
     if (moment.visibility === 'all') {
-        // 所有好友可见
-        visibleFriends = contacts.filter(c => !c.isGroup && c.id !== 'user' && c.id !== poster.id);
+        visibleFriends = contacts.filter(c => !c.isGroup && c.id !== 'user');
     } else {
-        // 特定分组可见
-        visibleFriends = contacts.filter(c => 
-            !c.isGroup && 
-            c.id !== 'user' && 
-            c.id !== poster.id &&
-            c.group === moment.visibility
-        );
+        visibleFriends = contacts.filter(c => !c.isGroup && c.id !== 'user' && c.group === moment.visibility);
     }
 
-    // 排除已经评论过的
+    // 2. Filter out the original poster and anyone who has already commented
     const commentedIds = moment.comments.map(c => c.senderId);
-    const potentialResponders = visibleFriends.filter(c => !commentedIds.includes(c.id));
+    let potentialResponders = visibleFriends.filter(c => c.id !== poster.id && !commentedIds.includes(c.id));
 
     if (potentialResponders.length === 0) return;
 
-    // 增加触发概率（40%）
+    // 3. Prioritize responders from the same group as the last commenter (if applicable)
+    let responder;
+    const lastCommenter = lastComment.senderId !== 'user' ? contacts.find(c => c.id === lastComment.senderId) : null;
+    
+    if (lastCommenter && lastCommenter.group) {
+        const groupMates = potentialResponders.filter(r => r.group === lastCommenter.group && r.id !== lastCommenter.id);
+        if (groupMates.length > 0) {
+            responder = groupMates[Math.floor(Math.random() * groupMates.length)];
+        }
+    }
+    
+    // If no specific responder was chosen from a group, pick from the general pool
+    if (!responder) {
+        responder = potentialResponders[Math.floor(Math.random() * potentialResponders.length)];
+    }
+    
+    // If we still don't have a responder, exit
+    if (!responder) return;
+
+    // 4. Randomly decide whether to comment (40% chance)
     if (Math.random() < 0.4) {
-        const responder = potentialResponders[Math.floor(Math.random() * potentialResponders.length)];
-        
         try {
             const ai = new GoogleGenAI({ apiKey: config.key });
             
-            // 构建更智能的提示词
+            // 5. Build a more intelligent prompt to encourage replies
+            const targetComment = lastComment;
+            // A comment is a reply if it has an ID (i.e., it's not the original moment post) and wasn't made by the current responder
+            const isReplying = targetComment && targetComment.id && targetComment.senderId !== responder.id;
+
             const prompt = `
-            你是 ${responder.name}，你的人设是：${responder.prompt}
+            You are ${responder.name}. Your persona is: ${responder.prompt}.
             
-            朋友圈背景：
-            - 发布者：${poster.name}
-            - 动态内容：${moment.text}
-            ${moment.image ? '- 附带了图片' : ''}
+            You are seeing a moment on your timeline from ${poster.name}.
+            Moment content: "${moment.text}"
             
-            对话上下文：
-            ${moment.comments.length > 0 ? 
-                '已有评论：' + moment.comments.slice(-3).map(c => 
-                    `${c.senderName}: ${c.text}`
-                ).join('\n') : 
-                '这是第一条评论'
+            ${isReplying ? 
+              `You are replying to a comment from ${targetComment.senderName} that says: "${targetComment.text}".` :
+              `You are making a new comment on the moment.`
             }
+
+            Task: Write a short, natural, in-character comment.
+            - Keep it brief (10-30 words).
+            - Do not use hashtags or emojis.
+            - Output only the comment text.
             
-            请以 ${responder.name} 的身份，发表一条朋友圈评论。
-            要求：
-            1. 符合你的人设和性格
-            2. 自然、口语化
-            3. 适当回应动态内容或已有评论
-            4. 长度在10-30字之间
-            5. 直接输出评论内容，不要加引号或其他格式
+            Your comment:`;
             
-            你的评论：`;
-            
-            // 使用更稳定的模型
             const response = await ai.models.generateContent({ 
                 model: 'gemini-3-flash-preview', 
                 contents: prompt,
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 100
-                }
+                generationConfig: { temperature: 0.85 }
             });
             
             const replyText = response.text?.trim();
             
             if (replyText) {
-                // 检查是否是回复某条评论
-                let replyTo = null;
-                let replyToId = null;
-                
-                if (moment.comments.length > 0) {
-                    // 50%的概率回复最新的评论
-                    if (Math.random() < 0.5) {
-                        const latestComment = moment.comments[moment.comments.length - 1];
-                        if (latestComment.senderId !== responder.id) {
-                            replyTo = latestComment.senderName;
-                            replyToId = latestComment.id;
-                        }
-                    }
-                }
-                
                 const newAIComment = {
                     id: `comment_${Date.now()}`,
                     senderId: responder.id,
                     senderName: responder.name,
                     text: replyText,
                     timestamp: Date.now(),
-                    replyTo: replyTo,
-                    replyToId: replyToId,
+                    replyTo: isReplying ? targetComment.senderName : null,
+                    replyToId: isReplying ? targetComment.id : null,
                 };
                 
                 moment.comments.push(newAIComment);
                 localStorage.setItem('moments', JSON.stringify(moments));
                 
-                // 重新渲染朋友圈
                 if (document.getElementById('tab-moments').style.display === 'block') {
                     renderMoments();
                 }
                 
-                // 触发通知
                 if (moment.charId === 'user') {
                     showNotification(responder.name, `评论了你的朋友圈: ${replyText.substring(0, 30)}...`, responder.avatar);
                 }
-                
-                // 递归触发更多评论（最多3层）
-                if (moment.comments.length < 10) {
-                    setTimeout(() => triggerAIComments(moment, newAIComment), 3000 + Math.random() * 5000);
+
+                // Chance to trigger another comment to create a chain
+                if (moment.comments.length < 8) {
+                   setTimeout(() => triggerAIComments(moment, newAIComment), 3000 + Math.random() * 5000);
                 }
             }
         } catch (e) {
             console.error("AI comment generation failed:", e);
-            // 静默失败，不显示错误
         }
     }
 }
@@ -3524,11 +3514,8 @@ async function generateAIMoment() {
     try {
         const ai = new GoogleGenAI({ apiKey: config.key });
         
-        // 更丰富的提示词
         const prompt = `你是${char.name}，你的人设是：${char.prompt}
-        
         请你以这个角色的身份，创作一条朋友圈动态。
-        
         要求：
         1. 完全符合角色的性格和背景
         2. 内容可以是日常分享、心情表达、趣事记录等
@@ -3542,10 +3529,7 @@ async function generateAIMoment() {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
-            generationConfig: {
-                temperature: 0.8,
-                maxOutputTokens: 150
-            }
+            generationConfig: { temperature: 0.8 }
         });
 
         const momentText = response.text?.trim();
@@ -3565,14 +3549,12 @@ async function generateAIMoment() {
             moments.unshift(newMoment);
             localStorage.setItem('moments', JSON.stringify(moments));
             
-            // 如果当前在朋友圈页面，重新渲染
             if (document.getElementById('tab-moments').style.display === 'block') {
                 renderMoments();
             }
             
             showToast(`${char.name} 发布了朋友圈！`, 'success');
             
-            // 触发好友评论（延迟2-5秒）
             setTimeout(() => {
                 triggerAIComments(newMoment, { 
                     senderId: newMoment.charId, 
@@ -3618,10 +3600,7 @@ function startAutoMomentGeneration() {
                 const response = await ai.models.generateContent({
                     model: 'gemini-3-flash-preview',
                     contents: prompt,
-                    generationConfig: {
-                        temperature: 0.8,
-                        maxOutputTokens: 100
-                    }
+                    generationConfig: { temperature: 0.8 }
                 });
                 
                 const momentText = response.text?.trim();
@@ -3641,10 +3620,8 @@ function startAutoMomentGeneration() {
                     moments.unshift(newMoment);
                     localStorage.setItem('moments', JSON.stringify(moments));
                     
-                    // 更新最后生成时间
                     lastAutoMomentTimestamp = now;
                     
-                    // 触发评论
                     setTimeout(() => {
                         triggerAIComments(newMoment, { 
                             senderId: newMoment.charId, 
@@ -4013,7 +3990,7 @@ function saveEditedMessage() {
     editingMessageIndex = null;
 }
 
-// Assign all functions to the window object
+// Assign all functions to the window object. This is crucial for onclick handlers in HTML to work when using a module script.
 Object.assign(window, {
     showToast, editHomeText, showScreen, goHome, closeModal, openSettings, saveSettings,
     fetchModels, openWeChat, openWorldBooks, openThemes, toggleFullscreen, changeIconStyle,
