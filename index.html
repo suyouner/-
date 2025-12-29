@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -252,7 +251,18 @@
   .msg-row.received { justify-content: flex-start; }
   .msg-row.sent { justify-content: flex-end; }
   .chat-avatar-img { width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0; background-size: cover; margin: 0 10px; }
-  .message { max-width: 70%; padding: 10px 14px; border-radius: 6px; font-size: 16px; line-height: 1.4; background: #fff; position: relative; word-wrap: break-word; user-select: text; }
+  .message {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 16px;
+    line-height: 1.4;
+    background: #fff;
+    position: relative;
+    word-break: break-all;
+    user-select: text;
+    white-space: pre-wrap;
+  }
   .msg-quote { background: rgba(0,0,0,0.05); border-left: 3px solid #ccc; padding: 4px 8px; margin-bottom: 5px; font-size: 13px; color: #666; border-radius: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .msg-row.sent .message { background: var(--bubble-me); color: #000; }
   .msg-thought-offline { text-decoration: underline; color: #999; }
@@ -444,7 +454,7 @@
 <script type="importmap">
 {
   "imports": {
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+    "@google/genai": "https://esm.sh/@google/genai"
   }
 }
 </script>
@@ -1307,13 +1317,58 @@ function showToast(message, type = 'info', duration = 2000) {
     }, duration);
 };
 
+function showNotification(name, message, avatar) {
+    const banner = document.getElementById('notification-banner');
+    const notifAvatar = document.getElementById('notif-avatar');
+    const notifName = document.getElementById('notif-name');
+    const notifMessage = document.getElementById('notif-message');
+    
+    if (banner && notifAvatar && notifName && notifMessage) {
+        notifAvatar.style.backgroundImage = `url('${avatar}')`;
+        notifName.textContent = name;
+        notifMessage.textContent = message;
+        
+        banner.classList.add('show');
+        
+        // 5秒后自动隐藏
+        if (notificationTimer) clearTimeout(notificationTimer);
+        notificationTimer = setTimeout(() => {
+            banner.classList.remove('show');
+        }, 5000);
+    }
+}
+
 function getCleanBaseUrl(url) { 
   if(!url) return ""; 
   let c = url.trim(); 
-  if(c.endsWith('/')) c = c.slice(0,-1); 
-  if(c.endsWith('/chat/completions')) c = c.replace('/chat/completions',''); 
-  else if(c.endsWith('/models')) c = c.replace('/models',''); 
+  while(c.endsWith('/')) c = c.slice(0,-1);
+  // remove trailing /v1beta/models or /v1beta if present to avoid duplication
+  if (c.endsWith('/v1beta/models')) c = c.replace(/\/v1beta\/models$/, '');
+  else if (c.endsWith('/v1beta')) c = c.replace(/\/v1beta$/, '');
   return c; 
+}
+
+async function callGeminiAPI(prompt, model = 'gemini-3-flash-preview') {
+    if (!config.key) {
+        throw new Error('API Key is not configured.');
+    }
+
+    if (config.baseUrl) {
+        const apiHost = getCleanBaseUrl(config.baseUrl);
+        const url = `${apiHost}/v1beta/models/${model}:generateContent?key=${config.key}`;
+        const body = { contents: [{ parts: [{ text: prompt }] }] };
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || `HTTP Error ${response.status}`);
+        }
+        const data = await response.json();
+        return data.candidates?.[0]?.content?.parts?.[0]?.text;
+    } else {
+        const ai = new GoogleGenAI({ apiKey: config.key });
+        const response = await ai.models.generateContent({ model, contents: prompt });
+        return response.text;
+    }
 }
 
 function compressImage(base64Str, quality = 0.7, maxWidth = 800) {
@@ -1644,81 +1699,75 @@ function saveSettings() {
   showToast('配置已保存', 'success');
 };
 
-function populateStaticModels() {
-    const modelSelect = (document.getElementById('api-model'));
-    const compatibleModels = [
-        'gemini-3-flash-preview',
-        'gemini-3-pro-preview',
-        'gemini-2.5-flash-image',
-        'gemini-3-pro-image-preview'
-    ];
-    modelSelect.innerHTML = '';
-    compatibleModels.forEach(modelId => {
-        const option = document.createElement('option');
-        option.value = modelId;
-        option.innerText = modelId;
-        modelSelect.appendChild(option);
-    });
-    // Try to set the value from the loaded config
-    if ([...modelSelect.options].some(o => o.value === config.model)) {
-        modelSelect.value = config.model;
-    }
-}
-
 async function fetchModels() {
     const modelSelect = document.getElementById('api-model');
     const key = document.getElementById('api-key').value;
-    const baseUrl = document.getElementById('api-url').value.trim();
-    
-    if (!key) {
-        showToast('请输入API Key以刷新模型列表', 'error');
+    let baseUrl = document.getElementById('api-url').value.trim();
+
+    if (!baseUrl) {
+        showToast('请输入API反代地址以刷新模型', 'error');
         return;
     }
     
     showToast('正在刷新模型列表...', 'info');
 
-    const googleApiHost = 'https://generativelanguage.googleapis.com';
-    const apiHost = baseUrl ? getCleanBaseUrl(baseUrl) : googleApiHost;
-    const url = `${apiHost}/v1beta/models?key=${key}`;
+    // Clean the base URL
+    if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+    }
+    if (baseUrl.endsWith('/v1')) {
+       baseUrl = baseUrl.slice(0, -3);
+    }
+
+    const url = `${baseUrl}/v1/models`;
 
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${key}`,
+                'Content-Type': 'application/json',
+            }
+        });
+
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`请求失败: ${response.status} ${errorText}`);
-        }
-        const data = await response.json();
-        
-        modelSelect.innerHTML = '';
-        if (data.models && Array.isArray(data.models)) {
-            data.models.forEach(model => {
-                const modelId = model.name.replace('models/', '');
-                if (model.supportedGenerationMethods && model.supportedGenerationMethods.includes("generateContent")) {
-                    const option = document.createElement('option');
-                    option.value = modelId;
-                    option.innerText = modelId;
-                    modelSelect.appendChild(option);
-                }
-            });
+            throw new Error(`API请求失败: ${response.status} ${errorText}`);
         }
 
-        if (modelSelect.options.length > 0) {
+        const data = await response.json();
+        
+        let models = [];
+        if (data.data && Array.isArray(data.data)) { // OpenAI format
+            models = data.data.map(model => model.id);
+        } else if (data.models && Array.isArray(data.models)) { // Google format
+            models = data.models.map(model => model.name.replace('models/', ''));
+        }
+
+        if (models.length > 0) {
+            modelSelect.innerHTML = '';
+            models.sort().forEach(modelId => {
+                const option = document.createElement('option');
+                option.value = modelId;
+                option.innerText = modelId;
+                modelSelect.appendChild(option);
+            });
+            
             if ([...modelSelect.options].some(o => o.value === config.model)) {
-                 modelSelect.value = config.model;
+                modelSelect.value = config.model;
             }
-            showToast('模型列表已更新', 'success');
+            
+            showToast(`已加载 ${models.length} 个模型`, 'success');
         } else {
-            showToast('未找到可用模型，加载备用列表', 'info');
-            populateStaticModels();
+            throw new Error('未找到可用模型或API返回格式不正确');
         }
         
     } catch (error) {
         console.error('Failed to fetch models:', error);
         showToast(`模型刷新失败: ${error.message}`, 'error');
-        populateStaticModels();
+        modelSelect.innerHTML = '<option value="">刷新失败, 请检查设置</option>';
     }
 }
-
 
 function exitMultiSelectMode() {
     isMultiSelectMode = false;
@@ -1737,6 +1786,9 @@ function updateChatTitleIndicator() {
   const ind = document.getElementById('chat-title');
   if(!ind) return;
   
+  // Do not update if it's currently showing "Typing..."
+  if(ind.dataset.originalTitle) return;
+
   let icons = '';
   if (!char.isGroup) {
       if (char.offlineMode && char.offlineMode.enabled) icons += ' <span class="offline-indicator">线下</span>';
@@ -2403,11 +2455,33 @@ function renderChat() {
 
     const isSelf = msg.sender === 'user';
     const isImg = msg.type === 'image';
-    container.appendChild(createMessageElement(msg, isSelf, isImg, index));
+
+    const msgElement = createMessageElement(msg, isSelf, isImg, index);
+    
+    container.appendChild(msgElement);
   });
   
   container.scrollTop = container.scrollHeight;
   updateChatTitleIndicator();
+}
+
+function showTypingIndicator() {
+    const titleEl = document.getElementById('chat-title');
+    if (titleEl) {
+        const char = contacts.find((c) => c.id === currentChatId);
+        if(char) {
+            titleEl.dataset.originalTitle = titleEl.innerHTML;
+            titleEl.innerText = '对方正在输入中...';
+        }
+    }
+}
+
+function hideTypingIndicator() {
+     const titleEl = document.getElementById('chat-title');
+     if (titleEl && titleEl.dataset.originalTitle) {
+         titleEl.innerHTML = titleEl.dataset.originalTitle;
+         delete titleEl.dataset.originalTitle;
+     }
 }
 
 async function getAIResponse() {
@@ -2415,6 +2489,7 @@ async function getAIResponse() {
     if (!char || !config.key) return;
 
     let responseText;
+    showTypingIndicator();
 
     try {
         let systemInstructionText = savedUserPersona;
@@ -2544,6 +2619,8 @@ async function getAIResponse() {
         showToast(`AI回复出错: ${e.message}`, 'error');
         char.history.push({ content: '对方暂时无法回复，请检查API设置', type: 'system', timestamp: Date.now() });
         renderChat();
+    } finally {
+        hideTypingIndicator();
     }
 }
 
@@ -2916,6 +2993,16 @@ function postUserMoment() {
     renderMoments();
     closeModal('modal-post-moment');
     showToast('发表成功', 'success');
+    
+    // 添加：触发AI好友评论
+    setTimeout(() => {
+        triggerAIComments(newMoment, { 
+            senderId: 'user', 
+            senderName: savedUserName, 
+            text: newMoment.text, 
+            id: null 
+        });
+    }, 2000 + Math.random() * 3000);
 };
 
 function deleteMoment(mid) {
@@ -3295,54 +3382,123 @@ async function triggerAIComments(moment, lastComment) {
     if (!config.key) return;
 
     const poster = contacts.find(c => c.id === moment.charId);
-    if (!poster || !poster.group) return;
+    if (!poster) return;
 
-    const potentialResponders = contacts.filter(c =>
-        !c.isGroup &&
-        c.id !== poster.id &&
-        c.id !== lastComment.senderId &&
-        c.group === poster.group &&
-        !moment.comments.some(comm => comm.senderId === c.id)
-    );
+    // 获取可见该朋友圈的好友
+    let visibleFriends = [];
+    
+    if (moment.visibility === 'all') {
+        // 所有好友可见
+        visibleFriends = contacts.filter(c => !c.isGroup && c.id !== 'user' && c.id !== poster.id);
+    } else {
+        // 特定分组可见
+        visibleFriends = contacts.filter(c => 
+            !c.isGroup && 
+            c.id !== 'user' && 
+            c.id !== poster.id &&
+            c.group === moment.visibility
+        );
+    }
 
-    if (potentialResponders.length > 0 && Math.random() < 0.4) {
+    // 排除已经评论过的
+    const commentedIds = moment.comments.map(c => c.senderId);
+    const potentialResponders = visibleFriends.filter(c => !commentedIds.includes(c.id));
+
+    if (potentialResponders.length === 0) return;
+
+    // 增加触发概率（40%）
+    if (Math.random() < 0.4) {
         const responder = potentialResponders[Math.floor(Math.random() * potentialResponders.length)];
-        const lastCommenterName = lastComment.senderName;
-
+        
         try {
             const ai = new GoogleGenAI({ apiKey: config.key });
-            const prompt = `
-            这是朋友圈的背景：
-            - 动态发布者: ${poster.name}
-            - 动态内容: "${moment.text}"
-            - 上一条评论/动态发布者: ${lastCommenterName}
-            - 上一条评论/动态内容: "${lastComment.text}"
             
-            现在，你是 ${responder.name}，你的人设是: "${responder.prompt}"。
-            你看到了这条动态/评论，请以 ${responder.name} 的身份，对 ${lastCommenterName} 的内容进行评论。
-            你的评论应该简短、口语化，符合你的角色性格。
-            请直接输出评论内容，不要带任何前缀或解释。`;
-
-            const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+            // 构建更智能的提示词
+            const prompt = `
+            你是 ${responder.name}，你的人设是：${responder.prompt}
+            
+            朋友圈背景：
+            - 发布者：${poster.name}
+            - 动态内容：${moment.text}
+            ${moment.image ? '- 附带了图片' : ''}
+            
+            对话上下文：
+            ${moment.comments.length > 0 ? 
+                '已有评论：' + moment.comments.slice(-3).map(c => 
+                    `${c.senderName}: ${c.text}`
+                ).join('\n') : 
+                '这是第一条评论'
+            }
+            
+            请以 ${responder.name} 的身份，发表一条朋友圈评论。
+            要求：
+            1. 符合你的人设和性格
+            2. 自然、口语化
+            3. 适当回应动态内容或已有评论
+            4. 长度在10-30字之间
+            5. 直接输出评论内容，不要加引号或其他格式
+            
+            你的评论：`;
+            
+            // 使用更稳定的模型
+            const response = await ai.models.generateContent({ 
+                model: 'gemini-3-flash-preview', 
+                contents: prompt,
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 100
+                }
+            });
+            
             const replyText = response.text?.trim();
-
+            
             if (replyText) {
-                const isReplyToComment = moment.comments.some(c => c.id === lastComment.id);
+                // 检查是否是回复某条评论
+                let replyTo = null;
+                let replyToId = null;
+                
+                if (moment.comments.length > 0) {
+                    // 50%的概率回复最新的评论
+                    if (Math.random() < 0.5) {
+                        const latestComment = moment.comments[moment.comments.length - 1];
+                        if (latestComment.senderId !== responder.id) {
+                            replyTo = latestComment.senderName;
+                            replyToId = latestComment.id;
+                        }
+                    }
+                }
+                
                 const newAIComment = {
                     id: `comment_${Date.now()}`,
                     senderId: responder.id,
                     senderName: responder.name,
                     text: replyText,
                     timestamp: Date.now(),
-                    replyTo: isReplyToComment ? lastCommenterName : null,
-                    replyToId: isReplyToComment ? lastComment.id : null,
+                    replyTo: replyTo,
+                    replyToId: replyToId,
                 };
+                
                 moment.comments.push(newAIComment);
                 localStorage.setItem('moments', JSON.stringify(moments));
-                renderMoments();
+                
+                // 重新渲染朋友圈
+                if (document.getElementById('tab-moments').style.display === 'block') {
+                    renderMoments();
+                }
+                
+                // 触发通知
+                if (moment.charId === 'user') {
+                    showNotification(responder.name, `评论了你的朋友圈: ${replyText.substring(0, 30)}...`, responder.avatar);
+                }
+                
+                // 递归触发更多评论（最多3层）
+                if (moment.comments.length < 10) {
+                    setTimeout(() => triggerAIComments(moment, newAIComment), 3000 + Math.random() * 5000);
+                }
             }
         } catch (e) {
             console.error("AI comment generation failed:", e);
+            // 静默失败，不显示错误
         }
     }
 }
@@ -3364,11 +3520,29 @@ async function generateAIMoment() {
 
     try {
         const ai = new GoogleGenAI({ apiKey: config.key });
-        const prompt = `你是${char.name}，你的人设是：${char.prompt}。请你模仿这个角色，写一条简短的、生活化的朋友圈动态，关于你最近的日常、想法或心情。不要超过100个字，不要使用表情符号和#标签。`;
+        
+        // 更丰富的提示词
+        const prompt = `你是${char.name}，你的人设是：${char.prompt}
+        
+        请你以这个角色的身份，创作一条朋友圈动态。
+        
+        要求：
+        1. 完全符合角色的性格和背景
+        2. 内容可以是日常分享、心情表达、趣事记录等
+        3. 自然、真实、有生活气息
+        4. 长度在15-50字之间
+        5. 不要使用表情符号和#话题标签
+        6. 直接输出动态内容，不要加引号
+        
+        朋友圈内容：`;
         
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview', 
+            model: 'gemini-3-flash-preview',
             contents: prompt,
+            generationConfig: {
+                temperature: 0.8,
+                maxOutputTokens: 150
+            }
         });
 
         const momentText = response.text?.trim();
@@ -3384,12 +3558,26 @@ async function generateAIMoment() {
                 comments: [],
                 visibility: 'all'
             };
+            
             moments.unshift(newMoment);
             localStorage.setItem('moments', JSON.stringify(moments));
-            renderMoments();
-            showToast('朋友圈生成成功！', 'success');
-            const fakeFirstComment = { senderId: newMoment.charId, senderName: char.name, text: newMoment.text, id: null };
-            setTimeout(() => triggerAIComments(newMoment, fakeFirstComment), 2000 + Math.random() * 3000);
+            
+            // 如果当前在朋友圈页面，重新渲染
+            if (document.getElementById('tab-moments').style.display === 'block') {
+                renderMoments();
+            }
+            
+            showToast(`${char.name} 发布了朋友圈！`, 'success');
+            
+            // 触发好友评论（延迟2-5秒）
+            setTimeout(() => {
+                triggerAIComments(newMoment, { 
+                    senderId: newMoment.charId, 
+                    senderName: char.name, 
+                    text: newMoment.text, 
+                    id: null 
+                });
+            }, 2000 + Math.random() * 3000);
         } else {
             throw new Error('AI未能生成内容');
         }
@@ -3397,7 +3585,78 @@ async function generateAIMoment() {
         console.error("Moment generation failed:", e);
         showToast('朋友圈生成失败', 'error');
     }
-};
+}
+
+function startAutoMomentGeneration() {
+    if (!autoMomentEnabled) return;
+    
+    // 每小时检查一次
+    setInterval(async () => {
+        const now = Date.now();
+        
+        // 至少间隔2小时才生成
+        if (now - lastAutoMomentTimestamp < 2 * 60 * 60 * 1000) return;
+        
+        // 获取启用了自动朋友圈的角色
+        const autoMomentChars = contacts.filter(c => c.autoMoment && !c.isGroup);
+        if (autoMomentChars.length === 0) return;
+        
+        // 随机选择一个角色
+        const char = autoMomentChars[Math.floor(Math.random() * autoMomentChars.length)];
+        
+        // 25%的概率生成朋友圈
+        if (Math.random() < 0.25) {
+            lastAutoMomentTimestamp = now;
+            
+            try {
+                const ai = new GoogleGenAI({ apiKey: config.key });
+                const prompt = `作为${char.name}（${char.prompt}），发一条简短的朋友圈，关于日常生活、心情或所见所闻，15-40字。`;
+                
+                const response = await ai.models.generateContent({
+                    model: 'gemini-3-flash-preview',
+                    contents: prompt,
+                    generationConfig: {
+                        temperature: 0.8,
+                        maxOutputTokens: 100
+                    }
+                });
+                
+                const momentText = response.text?.trim();
+                
+                if (momentText) {
+                    const newMoment = {
+                        id: `moment_${Date.now()}`,
+                        charId: char.id,
+                        text: momentText,
+                        image: '',
+                        timestamp: now,
+                        likes: [],
+                        comments: [],
+                        visibility: 'all'
+                    };
+                    
+                    moments.unshift(newMoment);
+                    localStorage.setItem('moments', JSON.stringify(moments));
+                    
+                    // 更新最后生成时间
+                    lastAutoMomentTimestamp = now;
+                    
+                    // 触发评论
+                    setTimeout(() => {
+                        triggerAIComments(newMoment, { 
+                            senderId: newMoment.charId, 
+                            senderName: char.name, 
+                            text: newMoment.text, 
+                            id: null 
+                        });
+                    }, 3000 + Math.random() * 4000);
+                }
+            } catch (e) {
+                console.error("Auto moment generation failed:", e);
+            }
+        }
+    }, 60 * 60 * 1000); // 每小时检查一次
+}
 
 function confirmTransfer() {
     const amount = parseFloat(document.getElementById('transfer-amount').value);
@@ -4007,7 +4266,7 @@ document.addEventListener('DOMContentLoaded', () => {
     applyChatBackground();
     applyDesktopWallpaper();
     applyAppIconStyle();
-    populateStaticModels();
+    
     applyGlobalFont();
     
     document.addEventListener('contextmenu', e => {
@@ -4034,6 +4293,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    // 启动自动朋友圈生成
+    if (autoMomentEnabled) {
+        setTimeout(startAutoMomentGeneration, 10000); // 10秒后启动
+    }
 });
 </script>
 </body>
