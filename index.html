@@ -253,7 +253,7 @@
   .chat-avatar-img { width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0; background-size: cover; margin: 0 10px; }
   .message {
     width: max-content;
-    max-width: 70%;
+    max-width: 100%;
     padding: 10px 14px;
     border-radius: 6px;
     font-size: 16px;
@@ -261,10 +261,10 @@
     background: #fff;
     position: relative;
     word-break: break-word;
-    user-select: text;
     white-space: pre-wrap;
     text-align: left;
-    display: inline-block;
+    box-sizing: border-box;
+    user-select: text;
   }
   .msg-quote { background: rgba(0,0,0,0.05); border-left: 3px solid #ccc; padding: 4px 8px; margin-bottom: 5px; font-size: 13px; color: #666; border-radius: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .msg-row.sent .message { background: var(--bubble-me); color: #000; }
@@ -2360,8 +2360,8 @@ function renderActionPanel() {
     if (char.isGroup) {
         actions.push({ name: '群红包', icon: 'fas fa-gift', action: "sendGroupRedPacket()" });
     } else {
-        actions.push({ name: '线下', icon: 'fas fa-theater-masks', action: "openOfflineModeSettings()" });
         actions.push({ name: '转账', icon: 'fas fa-exchange-alt', action: "sendTransfer()" });
+        actions.push({ name: '线下', icon: 'fas fa-theater-masks', action: "openOfflineModeSettings()" });
     }
 
     grid.innerHTML = actions.map(a => `
