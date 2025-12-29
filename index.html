@@ -281,10 +281,10 @@
   .transfer-status { font-size: 12px; opacity: 0.9; margin-top: 2px; }
   .transfer-footer { background: #fcfcfc; font-size: 10px; color: #aaa; padding: 3px 12px; border-top: 0.5px solid rgba(0,0,0,0.05); }
 
-  .msg-transfer.accepted, .msg-transfer.returned { background: #fde4ce !important; }
-  .msg-transfer.accepted .transfer-icon, .msg-transfer.returned .transfer-icon { color: #999; border-color: #ccc; }
-  .msg-transfer.accepted .transfer-amount, .msg-transfer.returned .transfer-amount,
-  .msg-transfer.accepted .transfer-status, .msg-transfer.returned .transfer-status { color: #666 !important; }
+  .msg-transfer.accepted, .msg-transfer.returned { background: #fbc17d !important; }
+  .msg-transfer.accepted .transfer-icon, .msg-transfer.returned .transfer-icon { color: white; border-color: white; opacity: 0.8;}
+  .msg-transfer.accepted .transfer-amount, .msg-transfer.returned .transfer-amount { color: white !important; }
+  .msg-transfer.accepted .transfer-status, .msg-transfer.returned .transfer-status { color: white !important; opacity: 0.8;}
 
   .msg-img { width: 150px; height: 150px; object-fit: cover; border-radius: 4px; display: block; cursor: pointer; background-color: #eee; }
   .msg-error { align-self: center; background: #ffebee; color: #d32f2f; font-size: 12px; padding: 5px 10px; border-radius: 4px; margin: 0 auto !important; }
@@ -492,11 +492,12 @@
   </div>
 
   <div id="msg-context-menu">
+    <div onclick="menuAction('retry')">重试</div>
+    <div onclick="menuAction('edit')">编辑</div>
+    <div onclick="menuAction('recall')">撤回</div>
+    <div onclick="menuAction('delete')">删除</div>
     <div onclick="menuAction('reply')">引用</div>
     <div onclick="menuAction('multi-select')">多选</div>
-    <div onclick="menuAction('edit')">编辑</div>
-    <div onclick="menuAction('delete')">删除</div>
-    <div onclick="menuAction('recall')">撤回</div>
   </div>
 
   <div id="chat-list-context-menu">
@@ -1227,6 +1228,15 @@ function loadBooleanFromStorage(key, defaultValue) {
     return item === null ? defaultValue : item === 'true';
 }
 
+function sanitizeModel(modelName) {
+    const PROHIBITED_MODELS = ['gemini-pro', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-latest'];
+    if (PROHIBITED_MODELS.includes(modelName)) {
+        console.warn(`Prohibited model "${modelName}" detected. Upgrading to "gemini-3-flash-preview".`);
+        return 'gemini-3-flash-preview';
+    }
+    return modelName;
+}
+
 let currentGroupView = '全部';
 let toastTimer = null;
 
@@ -1241,12 +1251,12 @@ let walletPassword = loadStringFromStorage('walletPassword', null);
 
 let config = { 
   key: loadStringFromStorage('apiKey', ''), 
-  model: loadStringFromStorage('apiModel', 'gemini-3-flash-preview'),
+  model: sanitizeModel(loadStringFromStorage('apiModel', 'gemini-3-flash-preview')),
   temp: loadNumberFromStorage('apiTemp', 0.8),
   baseUrl: loadStringFromStorage('apiUrl', '')
 };
 
-let contacts = loadFromStorage('contacts', [{ id: 1, name: "男友", realname: "", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=Boy", prompt: "你是用户的男朋友，温柔体贴，偶尔会有点小霸道。", worldBookId: 'wb_1', hideAvatar: 'none', history: [], syncReality: false, useRealTime: false, useRealWeather: false, city: '', latitude: null, longitude: null, group: '特别关心', isGroup: false, isPinned: false, members: [], memory: { auto: false, limit: 20, summary: "" }, unreadCount: 0 }]);
+let contacts = loadFromStorage('contacts', [{ id: 1, name: "男友", realname: "", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=Boy", prompt: "你是用户的男朋友，温柔体贴，偶尔会有点小霸道。", worldBookId: 'wb_1', hideAvatar: 'none', history: [], syncReality: false, useRealTime: false, useRealWeather: false, city: '', latitude: null, longitude: null, group: '特别关心', isGroup: false, isPinned: false, members: [], memory: { auto: false, limit: 20, summary: "" }, unreadCount: 0, walletBalance: 520.13 }]);
 
 // Ensure data integrity
 contacts.forEach((c) => {
@@ -1257,6 +1267,7 @@ contacts.forEach((c) => {
   if (c.offlineMode === undefined) c.offlineMode = { enabled: false, showThoughts: true, userPov: 'second', charPov: 'first', wordCount: 150, styleWbId: '' };
   if (c.latitude === undefined) c.latitude = null;
   if (c.longitude === undefined) c.longitude = null;
+  if (c.walletBalance === undefined) c.walletBalance = Math.floor(Math.random() * 2000) + 50;
 });
 
 let wbGroups = loadFromStorage('wbGroups', ['默认']); 
@@ -1803,15 +1814,29 @@ function updateChatTitleIndicator() {
 function showMsgContextMenu(e, index) {
     selectedMsgIndex = index;
     const menu = document.getElementById('msg-context-menu');
+    
+    const char = contacts.find(c => c.id === currentChatId);
+    if (!char || !menu) return;
+    const msg = char.history[index];
+    if (!msg) return;
+
+    const retryBtn = menu.querySelector('[onclick*="retry"]');
+    const editBtn = menu.querySelector('[onclick*="edit"]');
+    const recallBtn = menu.querySelector('[onclick*="recall"]');
+    
+    retryBtn.style.display = msg.sender === 'user' ? 'flex' : 'none';
+    editBtn.style.display = (msg.sender === 'user' && (msg.type === 'text' || !msg.type)) ? 'flex' : 'none';
+    recallBtn.style.display = (msg.sender === 'user' && (Date.now() - msg.timestamp) < 2 * 60 * 1000) ? 'flex' : 'none';
+
     menu.style.display = 'block';
     
     let clientX, clientY;
-    if (e instanceof MouseEvent) {
-        clientX = e.pageX;
-        clientY = e.pageY;
-    } else {
+    if (e.touches && e.touches.length > 0) {
         clientX = e.touches[0].pageX;
         clientY = e.touches[0].pageY;
+    } else {
+        clientX = e.pageX;
+        clientY = e.pageY;
     }
 
     menu.style.left = `${clientX}px`;
@@ -1839,14 +1864,22 @@ function createMessageElement(msg, isSelf, isImg, index) {
                 </div>
             </div>`;
     } else if (msg.type === 'transfer') {
-        const isAccepted = msg.status === 'accepted';
+        const statusText = {
+            pending: isSelf ? '等待对方收款' : '请收款',
+            accepted: isSelf ? '已被接收' : '已收款',
+            returned: isSelf ? '已退还' : '对方已退还',
+        }[msg.status] || (isSelf ? '等待对方收款' : '请收款');
+        
+        const isClickable = !isSelf && msg.status === 'pending';
+        const clickHandler = isClickable ? `onclick="window.acceptTransfer('${msg.id}')"` : '';
+
         contentHtml = `
-            <div class="message msg-transfer ${isAccepted ? 'accepted' : ''}" onclick="window.acceptTransfer('${msg.id}')">
+            <div class="message msg-transfer ${msg.status || ''}" ${clickHandler}>
                 <div class="transfer-content">
                     <div class="transfer-icon"><i class="fas fa-exchange-alt"></i></div>
                     <div class="transfer-details">
                         <span class="transfer-amount">¥${msg.amount.toFixed(2)}</span>
-                        <span class="transfer-status">${isAccepted ? '已收款' : '请收款'}</span>
+                        <span class="transfer-status">${statusText}</span>
                     </div>
                 </div>
                 <div class="transfer-footer">微信转账</div>
@@ -2487,15 +2520,47 @@ function hideTypingIndicator() {
      }
 }
 
+async function sendAiTextAsSentences(sentences, char, speakerId, speakerName) {
+    for (let i = 0; i < sentences.length; i++) {
+        const sentence = sentences[i];
+        if (sentence.trim() === '') continue;
+
+        const textMsg = {
+            senderId: speakerId,
+            senderName: speakerName,
+            content: sentence.trim(),
+            timestamp: Date.now() + i, // Add a tiny offset to maintain order
+            type: 'text'
+        };
+        if (!char.isGroup) textMsg.sender = speakerId;
+        char.history.push(textMsg);
+        
+        renderChat(); // Update UI for this message
+        
+        if (i < sentences.length - 1) { // Don't delay after the last message
+            const delay = 500 + Math.random() * 700;
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+}
+
 async function getAIResponse() {
     const char = contacts.find((c) => c.id === currentChatId);
     if (!char || !config.key) return;
 
-    let responseText;
+    let response;
     showTypingIndicator();
 
     try {
         let systemInstructionText = savedUserPersona;
+
+        let capabilities = [
+            "You can roll a dice by starting your response with '[DICE]'. Example: '[DICE] Let's see!'",
+            "You can send a money transfer to the user (if you have enough balance) by starting your response with '[TRANSFER:amount]'. Example: '[TRANSFER:5.20] Here is some pocket money.'",
+            "You can change your avatar by describing a new one. Start your response with '[SET_AVATAR_SEED:description]'. Example: '[SET_AVATAR_SEED:a happy smiling cat]'",
+            "You can delete your most recent Moments post by responding with just '[DELETE_MOMENT]' and an optional confirmation text."
+        ];
+
         if (char.isGroup) {
             systemInstructionText += "\n\n这是一个群聊。群成员如下:\n";
             char.members.forEach(memberId => {
@@ -2504,36 +2569,48 @@ async function getAIResponse() {
                     systemInstructionText += `- ${member.name}: ${member.prompt}\n`;
                 }
             });
-            systemInstructionText += "\n根据最新的对话内容，选择一个最合适的角色进行回复。你的回复必须以'角色名: '开头，例如 '张三: 你好啊'。";
+            systemInstructionText += "\n根据最新的对话内容，选择一个最合适的角色进行回复。你的回复必须以'角色名: '开头，例如 '张三: 你好啊'。This format applies to all capabilities, for example: '张三: [TRANSFER:10] Lunch is on me!'";
         } else {
             systemInstructionText += `\n\n${char.prompt}`;
             const wb = worldBooks.find(w => w.id === char.worldBookId);
             if (wb) {
                 systemInstructionText += `\n\n[World Book: ${wb.title}]\n${wb.content}`;
             }
+            if (!char.offlineMode || !char.offlineMode.enabled) {
+                systemInstructionText += "\n\nThis is an online chat. Your reply must be a direct spoken message. Keep it concise and conversational, like a real chat. Avoid long paragraphs. Do NOT include descriptive actions or thoughts in asterisks (*...*).";
+            }
         }
-
+        systemInstructionText += "\n\nAvailable Actions:\n- " + capabilities.join('\n- ');
+        
         const historyForAPI = char.history.slice(-char.memory.limit)
             .map(msg => {
                 let text;
                 if (msg.type === 'text' || !msg.type) text = msg.content;
-                else if (msg.type === 'red-packet') text = '[你发了一个红包表示感谢]';
-                else return null; 
+                else if (msg.type === 'transfer' && msg.sender === 'user') text = `[你发起了一笔 ${msg.amount.toFixed(2)} 元的转账]`;
+                else if (msg.type === 'transfer' && msg.sender !== 'user') text = `[你收到了一笔 ${msg.amount.toFixed(2)} 元的转账]`;
+                else if (msg.type === 'red-packet') text = '[你发了一个红包]';
+                else if (msg.type === 'dice') text = '[掷骰子]';
+                else return null;
 
                 if (!text) return null;
 
                 const role = (msg.sender === 'user' || msg.senderId === 'user') ? 'user' : 'model';
                 const content = (role === 'model' && char.isGroup) ? `${msg.senderName}: ${text}` : text;
                 
-                return {
-                    role: role,
-                    parts: [{ text: content }]
-                };
+                return { role: role, parts: [{ text: content }] };
             }).filter(Boolean);
         
         if(historyForAPI.length === 0) return;
-        const lastUserMessage = historyForAPI.findLast(m => m.role === 'user');
-        if (!lastUserMessage) return;
+        const lastUserMessageForApi = historyForAPI.findLast(m => m.role === 'user');
+        if (!lastUserMessageForApi) return;
+
+        let promptContentForApi = lastUserMessageForApi.parts[0].text;
+        const lastHistoryMsg = char.history.filter(m => m.type !== 'system' && m.sender === 'user').pop();
+
+        if (lastHistoryMsg && lastHistoryMsg.type === 'transfer' && lastHistoryMsg.status === 'pending') {
+             promptContentForApi += `\n\n[SYSTEM NOTE: You have received a transfer of ${lastHistoryMsg.amount.toFixed(2)}. You must decide to accept or return it. Your response MUST begin with either "[ACCEPT]" or "[RETURN]", followed by your spoken words. For example: "[ACCEPT] Thank you!"]`;
+             lastUserMessageForApi.parts[0].text = promptContentForApi;
+        }
 
         if (config.baseUrl) {
             const apiHost = getCleanBaseUrl(config.baseUrl);
@@ -2543,13 +2620,16 @@ async function getAIResponse() {
                 systemInstruction: { parts: [{ text: systemInstructionText }] },
                 generationConfig: { temperature: config.temp }
             };
-            const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error?.message || `HTTP Error ${response.status}`);
+            const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (!resp.ok) {
+                const errorData = await resp.json();
+                throw new Error(errorData.error?.message || `HTTP Error ${resp.status}`);
             }
-            const data = await response.json();
-            responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            const data = await resp.json();
+            response = {
+                text: data.candidates?.[0]?.content?.parts?.[0]?.text,
+                promptFeedback: data.promptFeedback
+            };
         } else {
             const ai = new GoogleGenAI({ apiKey: config.key });
             const chat = ai.chats.create({
@@ -2557,77 +2637,128 @@ async function getAIResponse() {
                 config: { systemInstruction: systemInstructionText, temperature: config.temp },
                 history: historyForAPI.slice(0, -1)
             });
-            const result = await chat.sendMessage({ message: lastUserMessage.parts[0].text });
-            responseText = result.text;
+            const result = await chat.sendMessage({ message: lastUserMessageForApi.parts[0].text });
+            response = result;
         }
 
+        const responseText = response.text;
         if (responseText) {
-            const lastUserMsgFromHistory = char.history.filter(m => m.sender === 'user').pop();
-            const isContinuation = lastUserMsgFromHistory && lastUserMsgFromHistory.content === '继续';
-            const isOnlineMode = !char.isGroup && (!char.offlineMode || !char.offlineMode.enabled);
+            let aiText = responseText.trim();
+            let messageContent = aiText;
+            let speakerId = char.isGroup ? null : char.id;
+            let speakerName = char.isGroup ? null : char.name;
+            let speakerChar = char;
 
             if (char.isGroup) {
-                const match = responseText.trim().match(/^(.+?):([\s\S]*)$/);
+                const match = aiText.match(/^(.+?):([\s\S]*)$/);
                 if (match) {
-                    const speakerName = match[1].trim();
-                    const messageContent = match[2].trim();
-                    const speakerMember = char.members.map(id => contacts.find(c => c.id === id)).find(m => m && m.name === speakerName);
-
-                    if (speakerMember) {
-                        const aiMsg = { senderId: speakerMember.id, senderName: speakerMember.name, content: messageContent, timestamp: Date.now(), type: 'text' };
-                        char.history.push(aiMsg);
+                    const parsedSpeakerName = match[1].trim();
+                    messageContent = match[2].trim();
+                    const member = char.members.map(id => contacts.find(c => c.id === id)).find(m => m && m.name === parsedSpeakerName);
+                    if (member) {
+                        speakerId = member.id;
+                        speakerName = member.name;
+                        speakerChar = member;
                     } else {
-                         char.history.push({ senderId: char.id, senderName: char.name, content: responseText.trim(), timestamp: Date.now(), type: 'text' });
+                         showToast(`AI回复格式错误 (未知说话人: ${parsedSpeakerName})`, 'error');
+                         return;
                     }
                 } else {
-                    char.history.push({ senderId: char.id, senderName: char.name, content: responseText.trim(), timestamp: Date.now(), type: 'text' });
+                     showToast('AI回复格式错误，已忽略', 'error');
+                     return;
                 }
-                localStorage.setItem('contacts', JSON.stringify(contacts));
-                renderChat();
-            } else if (isContinuation) {
-                const continueMsgIndex = char.history.findLastIndex(m => m.sender === 'user' && m.content === '继续');
-                if (continueMsgIndex > -1) char.history.splice(continueMsgIndex, 1);
+            }
+            
+            const transferActionMatch = messageContent.match(/^\[(ACCEPT|RETURN)\]\s*/);
+            const transferMatch = messageContent.match(/^\[TRANSFER:([\d.]+)\]\s*/);
+            const avatarMatch = messageContent.match(/^\[SET_AVATAR_SEED:(.+?)\]\s*/);
+            const deleteMomentMatch = messageContent.match(/^\[DELETE_MOMENT\]\s*/);
+            
+            if (transferActionMatch) {
+                const lastUserTransfer = char.history.findLast(m => m.type === 'transfer' && m.sender === 'user' && m.status === 'pending');
+                if(lastUserTransfer){
+                    const action = transferActionMatch[1];
+                    if (action === 'ACCEPT') {
+                        lastUserTransfer.status = 'accepted';
+                        if (speakerChar.walletBalance !== undefined) speakerChar.walletBalance += lastUserTransfer.amount;
+                    } else { // RETURN
+                        lastUserTransfer.status = 'returned';
+                        walletBalance += lastUserTransfer.amount;
+                        localStorage.setItem('walletBalance', walletBalance.toString());
+                        updateMeTab();
+                    }
+                }
+                messageContent = messageContent.substring(transferActionMatch[0].length).trim();
+            } else if (transferMatch) {
+                const amount = parseFloat(transferMatch[1]);
+                if (speakerChar && !isNaN(amount) && amount > 0 && speakerChar.walletBalance >= amount) {
+                    speakerChar.walletBalance -= amount;
+                    const newMsg = { id: `transfer_${Date.now()}`, senderId: speakerId, senderName: speakerName, content: `向你转账`, timestamp: Date.now(), type: 'transfer', amount: amount, status: 'pending' };
+                     if(!char.isGroup) newMsg.sender = speakerId;
+                    char.history.push(newMsg);
+                    showToast(`${speakerName}向你转账 ¥${amount.toFixed(2)}`, 'success');
+                }
+                messageContent = messageContent.substring(transferMatch[0].length).trim();
+            } else if (avatarMatch) {
+                const seed = avatarMatch[1];
+                if (speakerChar) {
+                    speakerChar.avatar = `https://api.dicebear.com/7.x/miniavs/svg?seed=${encodeURIComponent(seed)}`;
+                    showToast(`${speakerName}更换了头像`, 'success');
+                }
+                messageContent = messageContent.substring(avatarMatch[0].length).trim();
+            } else if (deleteMomentMatch) {
+                const lastMomentIndex = moments.findLastIndex(m => m.charId === speakerId);
+                if (lastMomentIndex > -1) {
+                    moments.splice(lastMomentIndex, 1);
+                    localStorage.setItem('moments', JSON.stringify(moments));
+                    showToast(`${speakerName}删除了一条朋友圈`, 'success');
+                    if (document.getElementById('tab-moments').style.display === 'block') {
+                        renderMoments();
+                    }
+                }
+                messageContent = messageContent.substring(deleteMomentMatch[0].length).trim();
+            }
 
-                const prevAIMsg = char.history[char.history.length - 1];
-                if (prevAIMsg && prevAIMsg.sender !== 'user') {
-                    if (isOnlineMode) {
-                        const sentences = responseText.trim().match(/[^.!?\n]+[.!?\n]*/g) || [responseText.trim()];
-                        for (const sentence of sentences) {
-                            if (sentence.trim()) {
-                                prevAIMsg.content += ' ' + sentence.trim();
-                                renderChat();
-                                await new Promise(res => setTimeout(res, 400 + sentence.length * 30));
-                            }
-                        }
+            let didRenderSequentially = false;
+            if (messageContent) {
+                const diceMatch = messageContent.match(/^\[DICE\]\s*/);
+                if (diceMatch) {
+                    const remainingText = messageContent.substring(diceMatch[0].length).trim();
+                    const diceValue = Math.floor(Math.random() * 6) + 1;
+                    const diceMsg = { senderId: speakerId, senderName: speakerName, content: '', timestamp: Date.now(), type: 'dice', value: diceValue };
+                    if (!char.isGroup) diceMsg.sender = speakerId;
+                    char.history.push(diceMsg);
+                    messageContent = remainingText || null;
+                }
+
+                if (messageContent) {
+                     if (!char.isGroup && char.offlineMode?.enabled) {
+                        const textMsg = { senderId: speakerId, senderName: speakerName, content: messageContent, timestamp: Date.now(), type: 'text' };
+                        if (!char.isGroup) textMsg.sender = speakerId;
+                        char.history.push(textMsg);
                     } else {
-                        prevAIMsg.content += ' ' + responseText.trim();
-                        renderChat();
-                    }
-                } else {
-                    char.history.push({ sender: char.id, senderName: char.name, content: responseText.trim(), timestamp: Date.now(), type: 'text' });
-                    renderChat();
-                }
-                localStorage.setItem('contacts', JSON.stringify(contacts));
-            } else if (isOnlineMode) {
-                const sentences = responseText.trim().match(/[^.!?\n]+[.!?\n]*/g) || [responseText.trim()];
-                for (const [index, sentence] of sentences.entries()) {
-                    if (sentence.trim()) {
-                        const aiMsg = { sender: char.id, senderName: char.name, content: sentence.trim(), timestamp: Date.now() + index, type: 'text' };
-                        char.history.push(aiMsg);
-                        renderChat();
-                        await new Promise(res => setTimeout(res, 400 + sentence.length * 30));
+                        const sentences = messageContent.split('\n').filter(s => s.trim());
+                        await sendAiTextAsSentences(sentences, char, speakerId, speakerName);
+                        didRenderSequentially = true;
                     }
                 }
-                localStorage.setItem('contacts', JSON.stringify(contacts));
-            } else {
-                const aiMsg = { sender: char.id, senderName: char.name, content: responseText.trim(), timestamp: Date.now(), type: 'text' };
-                char.history.push(aiMsg);
-                localStorage.setItem('contacts', JSON.stringify(contacts));
+            }
+            
+            localStorage.setItem('contacts', JSON.stringify(contacts));
+            if (!didRenderSequentially) {
                 renderChat();
             }
             renderContacts();
+
         } else {
-            throw new Error("AI response was empty.");
+             const feedback = response.promptFeedback;
+             if (feedback && feedback.blockReason) {
+                 throw new Error(`Request blocked due to ${feedback.blockReason}.`);
+             }
+             if (feedback && feedback.safetyRatings && feedback.safetyRatings.some(r => r.blocked)) {
+                 throw new Error(`Generation failed: ${feedback.blockReason || 'SAFETY'}`);
+             }
+             throw new Error("AI response was empty.");
         }
     } catch (e) {
         console.error("Gemini API Error:", e);
@@ -2647,8 +2778,8 @@ async function continueAIResponse() {
         showToast('需要 AI 先说一句话才能继续', 'info');
         return;
     }
-    showToast('AI 正在继续...', 'info');
     char.history.push({ sender: 'user', content: '继续', timestamp: Date.now(), type: 'text' });
+    renderChat();
     await getAIResponse();
 }
 
@@ -2675,6 +2806,7 @@ async function sendMessage() {
   cancelReply();
   input.value = '';
   handleInput();
+  // getAIResponse(); // Removed for manual trigger
 };
 
 function openChat(id) {
@@ -2718,7 +2850,7 @@ function renderMoments() {
             <div class="m-content">
                 <div class="m-name">${poster.name}</div>
                 <div class="m-text">${m.text}</div>
-                ${m.image ? `<img src="${m.image}" class="m-img" onclick="window.showLightbox('${m.image}')">` : ''}
+                ${m.image ? `<img src="${m.image}" class="msg-img" onclick="window.showLightbox('${m.image}')">` : ''}
                 <div class="m-meta">
                     <span>${formatContactTime(m.timestamp)}</span>
                     ${m.charId === 'user' ? `<span class="m-del-btn" onclick="window.deleteMoment('${m.id}')">删除</span>` : ''}
@@ -2792,13 +2924,6 @@ function acceptTransfer(msgId) {
         msg.status = 'accepted';
         walletBalance += msg.amount;
         localStorage.setItem('walletBalance', walletBalance.toString());
-
-        char.history.push({
-            type: 'system',
-            content: `你已收款 ¥${msg.amount.toFixed(2)}`,
-            timestamp: Date.now()
-        });
-
         localStorage.setItem('contacts', JSON.stringify(contacts));
         renderChat();
         updateMeTab();
@@ -2816,6 +2941,26 @@ function menuAction(action) {
     const msg = char.history[selectedMsgIndex];
 
     switch(action) {
+        case 'retry':
+            const msgToRetry = char.history[selectedMsgIndex];
+            if (msgToRetry && msgToRetry.sender === 'user') {
+                const contentToRetry = msgToRetry.content;
+                char.history.splice(selectedMsgIndex, 1);
+                
+                const newMsg = {
+                    sender: 'user',
+                    content: contentToRetry,
+                    timestamp: Date.now(),
+                    type: msgToRetry.type,
+                };
+
+                char.history.push(newMsg);
+                localStorage.setItem('contacts', JSON.stringify(contacts));
+                renderChat();
+                renderContacts();
+                getAIResponse();
+            }
+            break;
         case 'reply':
             replyingToMsg = msg;
             const quoteBar = document.getElementById('quote-bar');
@@ -2833,12 +2978,10 @@ function menuAction(action) {
              renderChat();
             break;
         case 'edit':
-             if (msg.sender === 'user' && msg.type === 'text') {
+             if (msg.sender === 'user' && (msg.type === 'text' || !msg.type)) {
                 editingMessageIndex = selectedMsgIndex;
                 document.getElementById('edit-message-input').value = msg.content;
                 document.getElementById('modal-edit-message').style.display = 'flex';
-             } else {
-                showToast('只有自己发送的文本消息才能编辑', 'info');
              }
             break;
         case 'delete':
@@ -2847,14 +2990,11 @@ function menuAction(action) {
             renderChat();
             break;
         case 'recall':
-            const twoMinutes = 2 * 60 * 1000;
-            if (msg.sender === 'user' && (Date.now() - msg.timestamp) < twoMinutes) {
+            if (msg.sender === 'user' && (Date.now() - msg.timestamp) < 2 * 60 * 1000) {
                 msg.type = 'system';
                 msg.content = '你撤回了一条消息';
                 localStorage.setItem('contacts', JSON.stringify(contacts));
                 renderChat();
-            } else {
-                showToast('只能撤回2分钟内发送的消息', 'error');
             }
             break;
     }
@@ -2892,6 +3032,7 @@ function sendDiceMessage() {
     renderChat();
     renderContacts();
     document.getElementById('action-panel').classList.remove('show');
+    // getAIResponse(); // Removed for manual trigger
 };
 
 function sendImageMessageOnly(src) {
@@ -2904,6 +3045,7 @@ function sendImageMessageOnly(src) {
     renderContacts();
     document.getElementById('action-panel').classList.remove('show');
     document.getElementById('img-send-upload').value = '';
+    // getAIResponse(); // Removed for manual trigger
 };
 
 function showAddContactModal() {
@@ -2932,7 +3074,8 @@ function addNewChar() {
         isGroup: false,
         memory: { auto: false, limit: 20, summary: "" },
         unreadCount: 0,
-        offlineMode: { enabled: false, showThoughts: true, userPov: 'second', charPov: 'first', wordCount: 150, styleWbId: '' }
+        offlineMode: { enabled: false, showThoughts: true, userPov: 'second', charPov: 'first', wordCount: 150, styleWbId: '' },
+        walletBalance: Math.floor(Math.random() * 2000) + 50
     };
     contacts.push(newChar);
     localStorage.setItem('contacts', JSON.stringify(contacts));
@@ -3412,8 +3555,8 @@ async function triggerAIComments(moment, lastComment) {
         visibleFriends = contacts.filter(c => !c.isGroup && c.id !== 'user' && c.group === moment.visibility);
     }
 
-    // A character can respond as long as they aren't the poster or the last person who commented.
-    let potentialResponders = visibleFriends.filter(c => c.id !== poster.id && c.id !== lastComment.senderId);
+    // A character can respond as long as they aren't the last person who commented.
+    let potentialResponders = visibleFriends.filter(c => c.id !== lastComment.senderId);
 
     if (potentialResponders.length === 0) return;
     
@@ -3470,7 +3613,8 @@ async function triggerAIComments(moment, lastComment) {
                     renderMoments();
                 }
                 
-                if (moment.charId === 'user' || (isReplying && targetComment.senderId === 'user')) {
+                // Only show notification if the comment is on the user's post.
+                if (moment.charId === 'user') {
                     showNotification(responder.name, `评论了你的朋友圈: ${replyText.substring(0, 30)}...`, responder.avatar);
                 }
 
@@ -3655,6 +3799,7 @@ function confirmTransfer() {
             char.history.push(newMsg);
             localStorage.setItem('contacts', JSON.stringify(contacts));
             renderChat();
+            // getAIResponse(); // Removed for manual trigger
         }
         
         updateMeTab();
@@ -3856,6 +4001,7 @@ function confirmSendGroupRedPacket() {
             char.history.push(newMsg);
             localStorage.setItem('contacts', JSON.stringify(contacts));
             renderChat();
+            // getAIResponse(); // Removed for manual trigger
         }
         
         updateMeTab();
@@ -4046,11 +4192,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const mMenu = document.getElementById('moments-menu');
         const aMenu = document.getElementById('add-menu');
         const cMenu = document.getElementById('comment-context-menu');
+        const msgMenu = document.getElementById('msg-context-menu');
         const commentBar = document.getElementById('moment-comment-bar');
         
         if (mMenu && !mMenu.contains(target) && !(target.closest('#wx-cam-btn'))) { mMenu.style.display = 'none'; }
         if (aMenu && !aMenu.contains(target) && !(target.closest('#wx-add-btn'))) { aMenu.style.display = 'none'; }
         if (cMenu && !cMenu.contains(target)) { cMenu.style.display = 'none'; }
+        if (msgMenu && !msgMenu.contains(target) && !target.closest('.message, .msg-img, .msg-red-packet, .msg-transfer')) {
+            msgMenu.style.display = 'none';
+        }
 
         // Logic to hide the moment comment bar
         if (commentBar && commentBar.style.display === 'flex') {
@@ -4280,3 +4430,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+--- END OF FILE index.html ---
