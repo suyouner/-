@@ -252,6 +252,7 @@
   .msg-row.sent { justify-content: flex-end; }
   .chat-avatar-img { width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0; background-size: cover; margin: 0 10px; }
   .message {
+    width: max-content;
     max-width: 70%;
     padding: 10px 14px;
     border-radius: 6px;
@@ -259,9 +260,11 @@
     line-height: 1.4;
     background: #fff;
     position: relative;
-    word-break: break-all;
+    word-break: break-word;
     user-select: text;
     white-space: pre-wrap;
+    text-align: left;
+    display: inline-block;
   }
   .msg-quote { background: rgba(0,0,0,0.05); border-left: 3px solid #ccc; padding: 4px 8px; margin-bottom: 5px; font-size: 13px; color: #666; border-radius: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .msg-row.sent .message { background: var(--bubble-me); color: #000; }
@@ -2153,7 +2156,7 @@ function openOfflineModeSettings() {
 }
 
 function openMemoryModal() {
-    const char = contacts.find((c) => c.id === currentChatId);
+    const char = contacts.find(c => c.id === currentChatId);
     if(!char) return;
     document.getElementById('mem-auto-toggle').checked = char.memory.auto;
     document.getElementById('mem-limit-input').value = String(char.memory.limit);
