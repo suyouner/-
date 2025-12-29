@@ -2587,15 +2587,27 @@ async function getAIResponse() {
             } else if (isContinuation) {
                 const continueMsgIndex = char.history.findLastIndex(m => m.sender === 'user' && m.content === '继续');
                 if (continueMsgIndex > -1) char.history.splice(continueMsgIndex, 1);
-                
+
                 const prevAIMsg = char.history[char.history.length - 1];
                 if (prevAIMsg && prevAIMsg.sender !== 'user') {
-                    prevAIMsg.content += ' ' + responseText.trim();
+                    if (isOnlineMode) {
+                        const sentences = responseText.trim().match(/[^.!?\n]+[.!?\n]*/g) || [responseText.trim()];
+                        for (const sentence of sentences) {
+                            if (sentence.trim()) {
+                                prevAIMsg.content += ' ' + sentence.trim();
+                                renderChat();
+                                await new Promise(res => setTimeout(res, 400 + sentence.length * 30));
+                            }
+                        }
+                    } else {
+                        prevAIMsg.content += ' ' + responseText.trim();
+                        renderChat();
+                    }
                 } else {
                     char.history.push({ sender: char.id, senderName: char.name, content: responseText.trim(), timestamp: Date.now(), type: 'text' });
+                    renderChat();
                 }
                 localStorage.setItem('contacts', JSON.stringify(contacts));
-                renderChat();
             } else if (isOnlineMode) {
                 const sentences = responseText.trim().match(/[^.!?\n]+[.!?\n]*/g) || [responseText.trim()];
                 for (const [index, sentence] of sentences.entries()) {
@@ -2663,8 +2675,6 @@ async function sendMessage() {
   cancelReply();
   input.value = '';
   handleInput();
-
-  await getAIResponse();
 };
 
 function openChat(id) {
@@ -3009,13 +3019,11 @@ function postUserMoment() {
 };
 
 function deleteMoment(mid) {
-    if (confirm('确定要删除这条朋友圈吗？')) {
-        moments = moments.filter(m => m.id !== mid);
-        localStorage.setItem('moments', JSON.stringify(moments));
-        renderMoments();
-        showToast('朋友圈已删除', 'success');
-    }
-};
+    moments = moments.filter(m => m.id !== mid);
+    localStorage.setItem('moments', JSON.stringify(moments));
+    renderMoments();
+    showToast('朋友圈已删除', 'success');
+}
 
 function likeMoment(mid, btnElement) {
     const moment = moments.find(m => m.id === mid);
@@ -3133,20 +3141,17 @@ function sendMomentComment() {
 };
 
 function menuActionComment(action, event, mid, cid) {
-    // This function handles the context menu for comments.
-    // The `event` object is only passed on the initial 'long-press' action.
-    // For the 'delete' action called from the menu's onclick, `event` is undefined.
-    // We must check if `event` exists before trying to use it.
     if (event) {
         event.preventDefault();
         event.stopPropagation();
+        // Set state here, as 'event' is only present on the initial call
+        selectedCommentMid = mid;
+        selectedCommentId = cid;
     }
+
     const menu = document.getElementById('comment-context-menu');
     
     if (action === 'long-press') {
-        selectedCommentMid = mid;
-        selectedCommentId = cid;
-
         menu.style.display = 'block';
         menu.style.left = `${event.pageX}px`;
         menu.style.top = `${event.pageY}px`;
@@ -3158,18 +3163,24 @@ function menuActionComment(action, event, mid, cid) {
 
     } else if (action === 'delete') {
         if (menu) menu.style.display = 'none';
+        
         if (!selectedCommentMid || !selectedCommentId) {
-            // This might happen if the state is lost, handle gracefully.
-            showToast('无法删除评论，请重试', 'error');
+            console.error('No comment selected for deletion');
             return;
         }
 
         const moment = moments.find(m => m.id === selectedCommentMid);
         if (moment) {
+            const originalLength = moment.comments.length;
             moment.comments = moment.comments.filter(c => c.id !== selectedCommentId);
-            localStorage.setItem('moments', JSON.stringify(moments));
-            renderMoments();
-            showToast('评论已删除', 'success');
+            
+            if (moment.comments.length < originalLength) {
+                localStorage.setItem('moments', JSON.stringify(moments));
+                renderMoments();
+                showToast('评论已删除', 'success');
+            } else {
+                console.warn('Comment not found for deletion.');
+            }
         }
         // Reset state variables after action
         selectedCommentMid = null;
@@ -3394,7 +3405,6 @@ async function triggerAIComments(moment, lastComment) {
 
     const poster = contacts.find(c => c.id === moment.charId) || { id: 'user', name: savedUserName };
     
-    // 1. Get all friends who can see this moment
     let visibleFriends;
     if (moment.visibility === 'all') {
         visibleFriends = contacts.filter(c => !c.isGroup && c.id !== 'user');
@@ -3402,57 +3412,36 @@ async function triggerAIComments(moment, lastComment) {
         visibleFriends = contacts.filter(c => !c.isGroup && c.id !== 'user' && c.group === moment.visibility);
     }
 
-    // 2. Filter out the original poster and anyone who has already commented
-    const commentedIds = moment.comments.map(c => c.senderId);
-    let potentialResponders = visibleFriends.filter(c => c.id !== poster.id && !commentedIds.includes(c.id));
+    // A character can respond as long as they aren't the poster or the last person who commented.
+    let potentialResponders = visibleFriends.filter(c => c.id !== poster.id && c.id !== lastComment.senderId);
 
     if (potentialResponders.length === 0) return;
-
-    // 3. Prioritize responders from the same group as the last commenter (if applicable)
-    let responder;
-    const lastCommenter = lastComment.senderId !== 'user' ? contacts.find(c => c.id === lastComment.senderId) : null;
     
-    if (lastCommenter && lastCommenter.group) {
-        const groupMates = potentialResponders.filter(r => r.group === lastCommenter.group && r.id !== lastCommenter.id);
-        if (groupMates.length > 0) {
-            responder = groupMates[Math.floor(Math.random() * groupMates.length)];
-        }
-    }
-    
-    // If no specific responder was chosen from a group, pick from the general pool
-    if (!responder) {
-        responder = potentialResponders[Math.floor(Math.random() * potentialResponders.length)];
-    }
-    
-    // If we still don't have a responder, exit
+    const responder = potentialResponders[Math.floor(Math.random() * potentialResponders.length)];
     if (!responder) return;
 
-    // 4. Randomly decide whether to comment (40% chance)
-    if (Math.random() < 0.4) {
+    // AI *must* reply to the user. Also increase the chance of AI-to-AI replies.
+    const shouldReply = lastComment.senderId === 'user' || Math.random() < 0.6;
+
+    if (shouldReply) {
         try {
             const ai = new GoogleGenAI({ apiKey: config.key });
             
-            // 5. Build a more intelligent prompt to encourage replies
             const targetComment = lastComment;
-            // A comment is a reply if it has an ID (i.e., it's not the original moment post) and wasn't made by the current responder
             const isReplying = targetComment && targetComment.id && targetComment.senderId !== responder.id;
 
             const prompt = `
             You are ${responder.name}. Your persona is: ${responder.prompt}.
-            
             You are seeing a moment on your timeline from ${poster.name}.
             Moment content: "${moment.text}"
-            
             ${isReplying ? 
               `You are replying to a comment from ${targetComment.senderName} that says: "${targetComment.text}".` :
               `You are making a new comment on the moment.`
             }
-
             Task: Write a short, natural, in-character comment.
             - Keep it brief (10-30 words).
             - Do not use hashtags or emojis.
             - Output only the comment text.
-            
             Your comment:`;
             
             const response = await ai.models.generateContent({ 
@@ -3481,11 +3470,10 @@ async function triggerAIComments(moment, lastComment) {
                     renderMoments();
                 }
                 
-                if (moment.charId === 'user') {
+                if (moment.charId === 'user' || (isReplying && targetComment.senderId === 'user')) {
                     showNotification(responder.name, `评论了你的朋友圈: ${replyText.substring(0, 30)}...`, responder.avatar);
                 }
 
-                // Chance to trigger another comment to create a chain
                 if (moment.comments.length < 8) {
                    setTimeout(() => triggerAIComments(moment, newAIComment), 3000 + Math.random() * 5000);
                 }
@@ -4058,10 +4046,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const mMenu = document.getElementById('moments-menu');
         const aMenu = document.getElementById('add-menu');
         const cMenu = document.getElementById('comment-context-menu');
+        const commentBar = document.getElementById('moment-comment-bar');
         
         if (mMenu && !mMenu.contains(target) && !(target.closest('#wx-cam-btn'))) { mMenu.style.display = 'none'; }
         if (aMenu && !aMenu.contains(target) && !(target.closest('#wx-add-btn'))) { aMenu.style.display = 'none'; }
         if (cMenu && !cMenu.contains(target)) { cMenu.style.display = 'none'; }
+
+        // Logic to hide the moment comment bar
+        if (commentBar && commentBar.style.display === 'flex') {
+            const isClickOnCommentTrigger = target.closest('.m-action-item, .m-comment-item');
+            const isClickInsideBar = commentBar.contains(target);
+
+            if (!isClickOnCommentTrigger && !isClickInsideBar) {
+                hideMomentCommentBar();
+            }
+        }
     });
     
     document.getElementById('avatar-upload').addEventListener('change', (e) => {
