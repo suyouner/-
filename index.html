@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -136,6 +137,7 @@
 
   .nav-bar-with-back .nav-title { flex: 1; text-align: center; }
   .nav-btn { color: #333; cursor: pointer; font-size: 16px; border: none; background: none; }
+  .nav-bar .nav-title { flex: 1; text-align: center; margin: 0 44px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   #screen-home { background: var(--bg-gradient); color: #4a4a4a; }
   .home-content { padding: 20px; flex: 1; overflow-y: auto; }
@@ -152,11 +154,14 @@
   #screen-home[data-icon-style="colorful"] .app-item[data-app="worldbook"] .app-icon-box { background: linear-gradient(135deg, #fbc2eb, #a6c1ee); color: white; }
   #screen-home[data-icon-style="colorful"] .app-item[data-app="settings"] .app-icon-box { background: #607d8b; color: white; }
   #screen-home[data-icon-style="colorful"] .app-item[data-app="themes"] .app-icon-box { background: #9c27b0; color: white; }
+  #screen-home[data-icon-style="colorful"] .app-item[data-app="charphone"] .app-icon-box { background: #2196F3; color: white; }
+
   #screen-home[data-icon-style="glass"] .app-icon-box { background: rgba(255, 255, 255, 0.3); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
   #screen-home[data-icon-style="glass"] .app-item[data-app="wechat"] .app-icon-box { color: #25d366; }
   #screen-home[data-icon-style="glass"] .app-item[data-app="worldbook"] .app-icon-box { color: #ff80ab; }
   #screen-home[data-icon-style="glass"] .app-item[data-app="settings"] .app-icon-box { color: #818e95; }
   #screen-home[data-icon-style="glass"] .app-item[data-app="themes"] .app-icon-box { color: #af52bf; }
+  #screen-home[data-icon-style="glass"] .app-item[data-app="charphone"] .app-icon-box { color: #5cacee; }
 
   /* Forms */
   .form-list { padding: 20px; overflow-y: auto; flex: 1; }
@@ -527,6 +532,7 @@
         <div class="app-item" data-app="worldbook" onclick="openWorldBooks()"><div class="app-icon-box"><i class="fas fa-book-open"></i></div><span>世界书</span></div>
         <div class="app-item" data-app="settings" onclick="openSettings()"><div class="app-icon-box"><i class="fas fa-cog"></i></div><span>设置</span></div>
         <div class="app-item" data-app="themes" onclick="openThemes()"><div class="app-icon-box"><i class="fas fa-palette"></i></div><span>主题</span></div>
+        <div class="app-item" data-app="charphone" onclick="openCharPhone()"><div class="app-icon-box"><i class="fas fa-mobile-alt"></i></div><span>查手机</span></div>
       </div>
     </div>
   </div>
@@ -536,7 +542,11 @@
     <div class="nav-bar"><button class="nav-btn" onclick="goHome()"><i class="fas fa-chevron-left"></i></button><span>设置</span><div></div></div>
     <div class="form-list">
       <div class="form-group">
-        <div class="form-item"><label class="form-label">API 地址 (反代)</label><input type="text" id="api-url" class="form-input" placeholder="默认为 Gemini 官方地址"></div>
+        <div class="form-item">
+          <label class="form-label">API 地址 (反代)</label>
+          <input type="text" id="api-url" class="form-input" placeholder="默认为 Gemini 官方地址">
+          <p style="font-size:12px; color:#999; margin-top:5px;">支持 Gemini 和 OpenAI 格式的代理。使用非 Gemini 模型时，此项必填。</p>
+        </div>
         <div class="form-item"><label class="form-label">API Key</label><input type="password" id="api-key" class="form-input" placeholder="Gemini API Key"></div>
         <div class="form-item"><label class="form-label">模型</label><div style="display: flex; gap:8px;"><select id="api-model" class="form-select" style="border:1px solid #ddd; border-radius:6px; flex:1;"></select><button class="btn-primary" style="width:auto;padding:0 15px;margin:0;font-size:12px;" onclick="fetchModels()">刷新</button></div></div>
         
@@ -636,6 +646,16 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <div id="screen-char-phone" class="screen">
+    <div class="status-bar"><span class="status-bar-time">17:38</span><span><i class="fas fa-wifi"></i> <i class="fas fa-battery-full"></i></span></div>
+    <div class="nav-bar">
+      <button class="nav-btn" onclick="goHome()"><i class="fas fa-chevron-left"></i></button>
+      <span class="nav-title">查手机</span>
+      <div style="width: 44px;"></div>
+    </div>
+    <div id="char-phone-list" class="form-list" style="padding: 0;"></div>
   </div>
 
   <div id="screen-wechat" class="screen">
@@ -1558,6 +1578,11 @@ function openThemes() {
   showScreen('screen-themes'); 
 };
 
+function openCharPhone() {
+    showScreen('screen-char-phone');
+    renderCharPhoneList();
+}
+
 function goHome() { 
   hideMomentCommentBar(); 
   showScreen('screen-home'); 
@@ -2295,7 +2320,13 @@ function updateWallpaperPreview() {
 function applyAppIconStyle() {
   const homeScreen = document.getElementById('screen-home');
   homeScreen.dataset.iconStyle = appIconStyle;
-  const iconMap = { wechat: 'fab fa-weixin', worldbook: 'fas fa-book-open', settings: 'fas fa-cog', themes: 'fas fa-palette' };
+  const iconMap = { 
+      wechat: 'fab fa-weixin', 
+      worldbook: 'fas fa-book-open', 
+      settings: 'fas fa-cog', 
+      themes: 'fas fa-palette',
+      charphone: 'fas fa-mobile-alt'
+  };
   document.querySelectorAll('#screen-home .app-item').forEach(item => {
       const appName = (item).dataset.app;
       const iconBox = item.querySelector('.app-icon-box');
@@ -2313,7 +2344,13 @@ function renderCustomIconEditor() {
   const grid = document.getElementById('custom-icon-grid');
   if (!grid) return;
   grid.innerHTML = '';
-  const apps = [{id: 'wechat', name: '微信'}, {id: 'worldbook', name: '世界书'}, {id: 'settings', name: '设置'}, {id: 'themes', name: '主题'}];
+  const apps = [
+      {id: 'wechat', name: '微信'}, 
+      {id: 'worldbook', name: '世界书'}, 
+      {id: 'settings', name: '设置'}, 
+      {id: 'themes', name: '主题'},
+      {id: 'charphone', name: '查手机'}
+  ];
   apps.forEach(app => {
       const item = document.createElement('div');
       item.className = 'app-item';
@@ -2465,6 +2502,44 @@ function renderContacts() {
     });
 }
 
+function renderCharPhoneList() {
+    const container = document.getElementById('char-phone-list');
+    container.innerHTML = '';
+    const characters = contacts.filter(c => !c.isGroup);
+    if (characters.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding-top:20px;">没有角色可以查看。</p>';
+        return;
+    }
+    characters.forEach(char => {
+        const charDiv = document.createElement('div');
+        charDiv.className = 'addr-item';
+        charDiv.onclick = () => showCharWallet(char.id);
+        charDiv.innerHTML = `
+            <div class="addr-avatar" style="background-image: url(${char.avatar || ''})"></div>
+            <div class="addr-name">${char.name}</div>
+        `;
+        container.appendChild(charDiv);
+    });
+}
+
+function showCharWallet(charId) {
+    const character = contacts.find(c => c.id === charId);
+    if (!character) return;
+    const currentBalance = character.walletBalance !== undefined ? character.walletBalance : 0;
+    const newBalanceStr = prompt(`查看/编辑 ${character.name} 的钱包余额:`, currentBalance);
+    
+    if (newBalanceStr !== null) { // User didn't cancel
+        const newBalance = parseFloat(newBalanceStr);
+        if (!isNaN(newBalance)) {
+            character.walletBalance = newBalance;
+            localStorage.setItem('contacts', JSON.stringify(contacts));
+            showToast(`${character.name} 的余额已更新`, 'success');
+        } else {
+            showToast('无效的金额', 'error');
+        }
+    }
+}
+
 function renderChat() {
   const container = document.getElementById('chat-messages');
   const char = contacts.find((c) => c.id === currentChatId);
@@ -2544,14 +2619,16 @@ async function sendAiTextAsSentences(sentences, char, speakerId, speakerName) {
     }
 }
 
-async function getAIResponse() {
+async function getAIResponse(isContinuation = false) {
     const char = contacts.find((c) => c.id === currentChatId);
     if (!char || !config.key) return;
 
-    let response;
     showTypingIndicator();
 
     try {
+        let responseText;
+
+        // --- Build Common Data ---
         let systemInstructionText = savedUserPersona;
 
         let capabilities = [
@@ -2565,83 +2642,120 @@ async function getAIResponse() {
             systemInstructionText += "\n\n这是一个群聊。群成员如下:\n";
             char.members.forEach(memberId => {
                 const member = contacts.find(c => c.id === memberId);
-                if (member) {
-                    systemInstructionText += `- ${member.name}: ${member.prompt}\n`;
-                }
+                if (member) systemInstructionText += `- ${member.name}: ${member.prompt}\n`;
             });
             systemInstructionText += "\n根据最新的对话内容，选择一个最合适的角色进行回复。你的回复必须以'角色名: '开头，例如 '张三: 你好啊'。This format applies to all capabilities, for example: '张三: [TRANSFER:10] Lunch is on me!'";
         } else {
             systemInstructionText += `\n\n${char.prompt}`;
             const wb = worldBooks.find(w => w.id === char.worldBookId);
-            if (wb) {
-                systemInstructionText += `\n\n[World Book: ${wb.title}]\n${wb.content}`;
-            }
-            if (!char.offlineMode || !char.offlineMode.enabled) {
-                systemInstructionText += "\n\nThis is an online chat. Your reply must be a direct spoken message. Keep it concise and conversational, like a real chat. Avoid long paragraphs. Do NOT include descriptive actions or thoughts in asterisks (*...*).";
-            }
+            if (wb) systemInstructionText += `\n\n[World Book: ${wb.title}]\n${wb.content}`;
+            if (!char.offlineMode || !char.offlineMode.enabled) systemInstructionText += "\n\nThis is an online chat. Your reply must be a direct spoken message. Keep it concise and conversational, like a real chat. Avoid long paragraphs. Do NOT include descriptive actions or thoughts in asterisks (*...*).";
         }
         systemInstructionText += "\n\nAvailable Actions:\n- " + capabilities.join('\n- ');
-        
-        const historyForAPI = char.history.slice(-char.memory.limit)
-            .map(msg => {
+
+        // --- Detect Model Type and Call API ---
+        const modelName = config.model.toLowerCase();
+        const isOpenAICompatible = modelName.includes('gpt') || modelName.includes('claude') || modelName.includes('llama');
+
+        if (isOpenAICompatible && config.baseUrl) {
+            // --- OpenAI-Compatible API Call ---
+            const apiHost = getCleanBaseUrl(config.baseUrl);
+            const url = `${apiHost}/v1/chat/completions`;
+            
+            let messagesForAPI = [{ role: 'system', content: systemInstructionText }];
+
+            char.history.slice(-char.memory.limit).forEach(msg => {
                 let text;
                 if (msg.type === 'text' || !msg.type) text = msg.content;
                 else if (msg.type === 'transfer' && msg.sender === 'user') text = `[你发起了一笔 ${msg.amount.toFixed(2)} 元的转账]`;
                 else if (msg.type === 'transfer' && msg.sender !== 'user') text = `[你收到了一笔 ${msg.amount.toFixed(2)} 元的转账]`;
                 else if (msg.type === 'red-packet') text = '[你发了一个红包]';
                 else if (msg.type === 'dice') text = '[掷骰子]';
-                else return null;
-
-                if (!text) return null;
-
-                const role = (msg.sender === 'user' || msg.senderId === 'user') ? 'user' : 'model';
-                const content = (role === 'model' && char.isGroup) ? `${msg.senderName}: ${text}` : text;
                 
-                return { role: role, parts: [{ text: content }] };
-            }).filter(Boolean);
-        
-        if(historyForAPI.length === 0) return;
-        const lastUserMessageForApi = historyForAPI.findLast(m => m.role === 'user');
-        if (!lastUserMessageForApi) return;
+                if (text) {
+                    const role = (msg.sender === 'user' || msg.senderId === 'user') ? 'user' : 'assistant';
+                    const content = (role === 'assistant' && char.isGroup) ? `${msg.senderName}: ${text}` : text;
+                    messagesForAPI.push({ role, content });
+                }
+            });
+            
+            if (isContinuation) {
+                messagesForAPI.push({ role: 'user', content: '继续' });
+            }
 
-        let promptContentForApi = lastUserMessageForApi.parts[0].text;
-        const lastHistoryMsg = char.history.filter(m => m.type !== 'system' && m.sender === 'user').pop();
-
-        if (lastHistoryMsg && lastHistoryMsg.type === 'transfer' && lastHistoryMsg.status === 'pending') {
-             promptContentForApi += `\n\n[SYSTEM NOTE: You have received a transfer of ${lastHistoryMsg.amount.toFixed(2)}. You must decide to accept or return it. Your response MUST begin with either "[ACCEPT]" or "[RETURN]", followed by your spoken words. For example: "[ACCEPT] Thank you!"]`;
-             lastUserMessageForApi.parts[0].text = promptContentForApi;
-        }
-
-        if (config.baseUrl) {
-            const apiHost = getCleanBaseUrl(config.baseUrl);
-            const url = `${apiHost}/v1beta/models/${config.model}:generateContent?key=${config.key}`;
             const body = {
-                contents: historyForAPI,
-                systemInstruction: { parts: [{ text: systemInstructionText }] },
-                generationConfig: { temperature: config.temp }
+                model: config.model,
+                messages: messagesForAPI,
+                temperature: config.temp
             };
-            const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.key}` },
+                body: JSON.stringify(body)
+            });
+
             if (!resp.ok) {
                 const errorData = await resp.json();
                 throw new Error(errorData.error?.message || `HTTP Error ${resp.status}`);
             }
             const data = await resp.json();
-            response = {
-                text: data.candidates?.[0]?.content?.parts?.[0]?.text,
-                promptFeedback: data.promptFeedback
-            };
+            responseText = data.choices?.[0]?.message?.content;
+
         } else {
-            const ai = new GoogleGenAI({ apiKey: config.key });
-            const chat = ai.chats.create({
-                model: config.model,
-                config: { systemInstruction: systemInstructionText, temperature: config.temp },
-                history: historyForAPI.slice(0, -1)
-            });
-            const result = await chat.sendMessage({ message: lastUserMessageForApi.parts[0].text });
-            response = result;
+            // --- Google Gemini API Call (Proxy or Direct) ---
+            const historyForAPI = char.history.slice(-char.memory.limit)
+                .map(msg => {
+                    let text;
+                    if (msg.type === 'text' || !msg.type) text = msg.content;
+                    else if (msg.type === 'transfer' && msg.sender === 'user') text = `[你发起了一笔 ${msg.amount.toFixed(2)} 元的转账]`;
+                    else if (msg.type === 'transfer' && msg.sender !== 'user') text = `[你收到了一笔 ${msg.amount.toFixed(2)} 元的转账]`;
+                    else if (msg.type === 'red-packet') text = '[你发了一个红包]';
+                    else if (msg.type === 'dice') text = '[掷骰子]';
+                    else return null;
+
+                    if (!text) return null;
+
+                    const role = (msg.sender === 'user' || msg.senderId === 'user') ? 'user' : 'model';
+                    const content = (role === 'model' && char.isGroup) ? `${msg.senderName}: ${text}` : text;
+                    return { role, parts: [{ text: content }] };
+                }).filter(Boolean);
+                
+            if (isContinuation) {
+                historyForAPI.push({ role: 'user', parts: [{ text: '继续' }] });
+            }
+                
+            if(historyForAPI.length === 0) return;
+
+            if (config.baseUrl) {
+                const apiHost = getCleanBaseUrl(config.baseUrl);
+                const url = `${apiHost}/v1beta/models/${config.model}:generateContent?key=${config.key}`;
+                const body = {
+                    contents: historyForAPI,
+                    systemInstruction: { parts: [{ text: systemInstructionText }] },
+                    generationConfig: { temperature: config.temp }
+                };
+                const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (!resp.ok) {
+                    const errorData = await resp.json();
+                    throw new Error(errorData.error?.message || `HTTP Error ${resp.status}`);
+                }
+                const data = await resp.json();
+                responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            } else {
+                const ai = new GoogleGenAI({ apiKey: config.key });
+                const chatSession = ai.chats.create({
+                    model: config.model,
+                    config: { systemInstruction: systemInstructionText, temperature: config.temp },
+                    history: historyForAPI.slice(0, -1)
+                });
+                const lastUserMessage = historyForAPI[historyForAPI.length-1].parts[0].text;
+                const result = await chatSession.sendMessage({ message: lastUserMessage });
+                responseText = result.text;
+            }
         }
 
-        const responseText = response.text;
+        // --- Process Response ---
         if (responseText) {
             let aiText = responseText.trim();
             let messageContent = aiText;
@@ -2751,17 +2865,10 @@ async function getAIResponse() {
             renderContacts();
 
         } else {
-             const feedback = response.promptFeedback;
-             if (feedback && feedback.blockReason) {
-                 throw new Error(`Request blocked due to ${feedback.blockReason}.`);
-             }
-             if (feedback && feedback.safetyRatings && feedback.safetyRatings.some(r => r.blocked)) {
-                 throw new Error(`Generation failed: ${feedback.blockReason || 'SAFETY'}`);
-             }
              throw new Error("AI response was empty.");
         }
     } catch (e) {
-        console.error("Gemini API Error:", e);
+        console.error("API Error:", e);
         showToast(`AI回复出错: ${e.message}`, 'error');
         char.history.push({ content: '对方暂时无法回复，请检查API设置', type: 'system', timestamp: Date.now() });
         renderChat();
@@ -2770,18 +2877,13 @@ async function getAIResponse() {
     }
 }
 
+
 async function continueAIResponse() {
     const char = contacts.find(c => c.id === currentChatId);
     if (!char) return;
-    const lastMsg = char.history.length > 0 ? char.history[char.history.length - 1] : null;
-    if (!lastMsg || lastMsg.sender === 'user') {
-        showToast('需要 AI 先说一句话才能继续', 'info');
-        return;
-    }
-    char.history.push({ sender: 'user', content: '继续', timestamp: Date.now(), type: 'text' });
-    renderChat();
-    await getAIResponse();
+    await getAIResponse(true);
 }
+
 
 async function sendMessage() {
   const input = document.getElementById('msg-input');
@@ -4146,7 +4248,8 @@ Object.assign(window, {
     exportBackup, onNotificationClick, openOfflineModeSettings, toggleOfflineOptions,
     saveOfflineModeSettings, requestAIResponse: getAIResponse, continueAIResponse, menuActionChatList, menuActionComment,
     saveEditedMessage, openWbSelection: ()=>{}, backToCharSettings: ()=>{}, selectWorldBook: ()=>{},
-    openMemoryModal, saveMemorySettings, hideMomentCommentBar, renderFontPresets, applyGlobalFont
+    openMemoryModal, saveMemorySettings, hideMomentCommentBar, renderFontPresets, applyGlobalFont,
+    openCharPhone, renderCharPhoneList, showCharWallet
 });
 
 
@@ -4430,4 +4533,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
---- END OF FILE index.html ---
