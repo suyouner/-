@@ -1889,11 +1889,27 @@ function createMessageElement(msg, isSelf, isImg, index) {
                 </div>
             </div>`;
     } else if (msg.type === 'transfer') {
-        const statusText = {
-            pending: isSelf ? '等待对方收款' : '请收款',
-            accepted: isSelf ? '已被接收' : '已收款',
-            returned: isSelf ? '已退还' : '对方已退还',
-        }[msg.status] || (isSelf ? '等待对方收款' : '请收款');
+        let statusText;
+        if (msg.status === 'accepted') {
+            if (isSelf) {
+                // A message sent BY THE USER.
+                // If it's a confirmation of receipt, it should say "已收款".
+                // If it's their original transfer that was accepted by the other party, it should say "已被接收".
+                // The confirmation message content is "收到转账".
+                statusText = (msg.content && msg.content.includes('收到转账')) ? '已收款' : '已被接收';
+            } else {
+                // A message received BY THE USER.
+                // This is either the AI's original transfer that the user accepted, or the AI's confirmation.
+                // In both cases, from the user's perspective, it should show "已收款".
+                statusText = '已收款';
+            }
+        } else {
+            // Handle other statuses as before.
+            statusText = {
+                pending: isSelf ? '等待对方收款' : '请收款',
+                returned: isSelf ? '已退还' : '对方已退还',
+            }[msg.status] || (isSelf ? '等待对方收款' : '请收款');
+        }
         
         const isClickable = !isSelf && msg.status === 'pending';
         const clickHandler = isClickable ? `onclick="window.acceptTransfer('${msg.id}')"` : '';
@@ -2634,6 +2650,8 @@ async function getAIResponse(isContinuation = false) {
         let capabilities = [
             "You can roll a dice by starting your response with '[DICE]'. Example: '[DICE] Let's see!'",
             "You can send a money transfer to the user (if you have enough balance) by starting your response with '[TRANSFER:amount]'. Example: '[TRANSFER:5.20] Here is some pocket money.'",
+            "You can accept a pending transfer from the user by responding with '[ACCEPT]'. You can optionally add text after, like '[ACCEPT] Thanks!'",
+            "You can return a pending transfer from the user by responding with '[RETURN]'. You can optionally add text after, like '[RETURN] No need, thanks.'",
             "You can change your avatar by describing a new one. Start your response with '[SET_AVATAR_SEED:description]'. Example: '[SET_AVATAR_SEED:a happy smiling cat]'",
             "You can delete your most recent Moments post by responding with just '[DELETE_MOMENT]' and an optional confirmation text."
         ];
@@ -2790,19 +2808,50 @@ async function getAIResponse(isContinuation = false) {
             
             if (transferActionMatch) {
                 const lastUserTransfer = char.history.findLast(m => m.type === 'transfer' && m.sender === 'user' && m.status === 'pending');
-                if(lastUserTransfer){
+                if (lastUserTransfer) {
                     const action = transferActionMatch[1];
+                    messageContent = messageContent.substring(transferActionMatch[0].length).trim();
+            
                     if (action === 'ACCEPT') {
                         lastUserTransfer.status = 'accepted';
                         if (speakerChar.walletBalance !== undefined) speakerChar.walletBalance += lastUserTransfer.amount;
+                        
+                        const newConfirmationMsg = {
+                            id: `transfer_confirm_${Date.now()}`,
+                            senderId: speakerId,
+                            senderName: speakerName,
+                            content: `收到转账`,
+                            timestamp: Date.now(),
+                            type: 'transfer',
+                            amount: lastUserTransfer.amount,
+                            status: 'accepted'
+                        };
+                        if (!char.isGroup) newConfirmationMsg.sender = speakerId;
+                        char.history.push(newConfirmationMsg);
+
                     } else { // RETURN
                         lastUserTransfer.status = 'returned';
                         walletBalance += lastUserTransfer.amount;
                         localStorage.setItem('walletBalance', walletBalance.toString());
                         updateMeTab();
+
+                        const newConfirmationMsg = {
+                            id: `transfer_confirm_${Date.now()}`,
+                            senderId: speakerId,
+                            senderName: speakerName,
+                            content: `退还转账`,
+                            timestamp: Date.now(),
+                            type: 'transfer',
+                            amount: lastUserTransfer.amount,
+                            status: 'returned'
+                        };
+                        if (!char.isGroup) newConfirmationMsg.sender = speakerId;
+                        char.history.push(newConfirmationMsg);
                     }
+                } else {
+                     messageContent = messageContent.substring(transferActionMatch[0].length).trim();
                 }
-                messageContent = messageContent.substring(transferActionMatch[0].length).trim();
+
             } else if (transferMatch) {
                 const amount = parseFloat(transferMatch[1]);
                 if (speakerChar && !isNaN(amount) && amount > 0 && speakerChar.walletBalance >= amount) {
@@ -2810,7 +2859,6 @@ async function getAIResponse(isContinuation = false) {
                     const newMsg = { id: `transfer_${Date.now()}`, senderId: speakerId, senderName: speakerName, content: `向你转账`, timestamp: Date.now(), type: 'transfer', amount: amount, status: 'pending' };
                      if(!char.isGroup) newMsg.sender = speakerId;
                     char.history.push(newMsg);
-                    showToast(`${speakerName}向你转账 ¥${amount.toFixed(2)}`, 'success');
                 }
                 messageContent = messageContent.substring(transferMatch[0].length).trim();
             } else if (avatarMatch) {
@@ -3026,10 +3074,22 @@ function acceptTransfer(msgId) {
         msg.status = 'accepted';
         walletBalance += msg.amount;
         localStorage.setItem('walletBalance', walletBalance.toString());
+
+        const newConfirmationMsg = {
+            id: `transfer_confirm_${Date.now()}`,
+            sender: 'user',
+            content: `收到转账`,
+            timestamp: Date.now(),
+            type: 'transfer',
+            amount: msg.amount,
+            status: 'accepted'
+        };
+        char.history.push(newConfirmationMsg);
+        
         localStorage.setItem('contacts', JSON.stringify(contacts));
         renderChat();
         updateMeTab();
-        showToast('已收款', 'success');
+        renderContacts();
     }
 };
 
@@ -4269,13 +4329,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const startPress = (e) => {
       e.preventDefault();
       micPressTimer = window.setTimeout(() => {
-        continueAIResponse();
+        // Long press action: continue response
+        const input = document.getElementById('msg-input');
+        if (!input.value.trim()) { // Only continue if input is empty
+            continueAIResponse();
+        }
         micPressTimer = null; 
       }, 500); 
     };
 
     const endPress = () => {
        if (micPressTimer) {
+        // Short press action: normal response
         clearTimeout(micPressTimer);
         micPressTimer = null;
         getAIResponse(); 
