@@ -1463,8 +1463,21 @@ function formatContactTime(timestamp) {
 }
 
 function formatChatTime(timestamp) {
-  const date = new Date(timestamp);
-  return `${(date.getMonth() + 1)}月${date.getDate()}日 ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+    const now = new Date();
+    const date = new Date(timestamp);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    
+    if (date >= today) {
+        return timeStr;
+    } else if (date >= yesterday) {
+        return `昨天 ${timeStr}`;
+    } else {
+        return `${(date.getMonth() + 1)}月${date.getDate()}日 ${timeStr}`;
+    }
 }
 
 function renderGroupBar() { 
