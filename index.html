@@ -560,7 +560,13 @@
                 <span style="font-size:12px;color:#999;">发散</span>
             </div>
         </div>
-
+        <div class="form-row-item">
+            <label class="form-label">后台消息通知</label>
+            <label class="switch">
+              <input type="checkbox" id="setting-bg-notifications" onchange="toggleBackgroundNotifications(this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
       </div>
        <div class="form-group">
         <div class="form-item">
@@ -802,6 +808,16 @@
                 <img id="setting-self-avatar-preview" src="" style="width:50px; height:50px; border-radius:6px; background:#eee; object-fit:cover;" onclick="document.getElementById('char-self-avatar-upload').click()">
                 <div style="font-size:12px; color:#999; flex:1;">点击图片更换，仅对当前聊天生效</div>
             </div>
+        </div>
+      </div>
+
+      <div class="form-group" id="row-proactive-chat">
+        <div class="form-row-item">
+          <label style="font-weight:bold;">主动聊天</label>
+          <label class="switch">
+              <input type="checkbox" id="setting-char-proactive">
+              <span class="slider"></span>
+          </label>
         </div>
       </div>
 
@@ -1287,6 +1303,7 @@ contacts.forEach((c) => {
   if (c.latitude === undefined) c.latitude = null;
   if (c.longitude === undefined) c.longitude = null;
   if (c.walletBalance === undefined) c.walletBalance = Math.floor(Math.random() * 2000) + 50;
+  if (c.proactiveChat === undefined) c.proactiveChat = false;
 });
 
 let wbGroups = loadFromStorage('wbGroups', ['默认']); 
@@ -1305,6 +1322,7 @@ let currentEditingIcon = null;
 let fontPresets = loadFromStorage('fontPresets', {});
 let activeFontUrl = loadStringFromStorage('activeFontUrl', '');
 let apiPresets = loadFromStorage('apiPresets', {});
+let backgroundNotificationsEnabled = loadBooleanFromStorage('backgroundNotificationsEnabled', false);
 
 let currentChatId = null; 
 let autoGenInterval = null; 
@@ -1563,6 +1581,7 @@ function openSettings() {
   document.getElementById('api-temp').value = String(config.temp);
   document.getElementById('temp-display').innerText = String(config.temp);
   document.getElementById('api-url').value = config.baseUrl; // Populate API URL
+  document.getElementById('setting-bg-notifications').checked = backgroundNotificationsEnabled;
   renderApiPresets(); 
   showScreen('screen-settings');
 };
@@ -1822,15 +1841,20 @@ function updateChatTitleIndicator() {
   const char = contacts.find((c) => c.id === currentChatId);
   if (!char) return;
   const ind = document.getElementById('chat-title');
-  if(!ind) return;
+  if (!ind) return;
   
   // Do not update if it's currently showing "Typing..."
-  if(ind.dataset.originalTitle) return;
+  if (ind.dataset.originalTitle) return;
 
   let icons = '';
   if (!char.isGroup) {
-      if (char.offlineMode && char.offlineMode.enabled) icons += ' <span class="offline-indicator">线下</span>';
-      if (char.syncReality) icons += ' <i class="fas fa-globe-asia" style="font-size:12px;color:#576b95;"></i>';
+    if (char.offlineMode && char.offlineMode.enabled) {
+      icons += ' <span class="offline-indicator">线下</span>';
+    }
+    // Per user request, hide the globe icon if real weather sync is active.
+    if (char.syncReality && !char.useRealWeather) {
+      icons += ' <i class="fas fa-globe-asia" style="font-size:12px;color:#576b95;"></i>';
+    }
   }
   ind.innerHTML = `${char.name}${icons}`;
 }
@@ -2162,6 +2186,7 @@ function openCharDetailSettings() {
     document.getElementById('row-prompt').style.display = isGroup ? 'none' : 'block';
     document.getElementById('row-self-avatar').style.display = isGroup ? 'none' : 'block';
     document.getElementById('row-reality-settings').style.display = isGroup ? 'none' : 'block';
+    document.getElementById('row-proactive-chat').style.display = isGroup ? 'none' : 'block';
     if (!isGroup) {
         document.getElementById('setting-char-realname').value = char.realname || '';
         document.getElementById('setting-char-prompt').value = char.prompt || '';
@@ -2176,6 +2201,7 @@ function openCharDetailSettings() {
         document.getElementById('setting-char-real-weather').checked = char.useRealWeather || false;
         document.getElementById('setting-char-city').value = char.city || '';
         document.getElementById('setting-char-real-time').checked = char.useRealTime || false;
+        document.getElementById('setting-char-proactive').checked = char.proactiveChat || false;
         toggleCityInput(char.useRealWeather || false);
     }
     showScreen('screen-char-settings');
@@ -2810,6 +2836,24 @@ async function getAIResponse(isContinuation = false) {
                      return;
                 }
             }
+
+            if (messageContent) { // Ensure there is something to notify about
+                if (backgroundNotificationsEnabled && Notification.permission === 'granted' && document.hidden) {
+                    const notificationBody = messageContent.split('\n')[0].replace(/\[.*?\]\s*/, '').trim(); // Clean up actions for notification
+                    if (notificationBody) { // Only show notification if there's actual text
+                        const notification = new Notification(speakerName, {
+                            body: notificationBody,
+                            icon: speakerChar.avatar,
+                            tag: `chat_${char.id}`
+                        });
+                        notification.onclick = () => {
+                            window.focus();
+                            openChat(char.id); 
+                            notification.close();
+                        };
+                    }
+                }
+            }
             
             const transferActionMatch = messageContent.match(/^\[(ACCEPT|RETURN)\]\s*/);
             const transferMatch = messageContent.match(/^\[TRANSFER:([\d.]+)\]\s*/);
@@ -3250,7 +3294,8 @@ function addNewChar() {
         memory: { auto: false, limit: 20, summary: "" },
         unreadCount: 0,
         offlineMode: { enabled: false, showThoughts: true, userPov: 'second', charPov: 'first', wordCount: 150, styleWbId: '' },
-        walletBalance: Math.floor(Math.random() * 2000) + 50
+        walletBalance: Math.floor(Math.random() * 2000) + 50,
+        proactiveChat: false,
     };
     contacts.push(newChar);
     localStorage.setItem('contacts', JSON.stringify(contacts));
@@ -3524,6 +3569,7 @@ function saveCharDetailSettings() {
         char.useRealTime = document.getElementById('setting-char-real-time').checked;
         char.useRealWeather = document.getElementById('setting-char-real-weather').checked;
         char.city = document.getElementById('setting-char-city').value;
+        char.proactiveChat = document.getElementById('setting-char-proactive').checked;
     }
 
     localStorage.setItem('contacts', JSON.stringify(contacts));
@@ -4205,7 +4251,8 @@ function exportBackup() {
         'walletBalance', 'walletPassword', 'apiKey', 'apiModel', 'apiTemp', 'apiUrl', // Added apiUrl
         'contacts', 'wbGroups', 'worldBooks', 'customEmojis', 'emojiGroups',
         'moments', 'autoMomentEnabled', 'isFullscreen', 'chatBackgroundImage',
-        'desktopWallpaper', 'appIconStyle', 'customAppIcons', 'fontPresets', 'activeFontUrl', 'apiPresets'
+        'desktopWallpaper', 'appIconStyle', 'customAppIcons', 'fontPresets', 'activeFontUrl', 'apiPresets',
+        'backgroundNotificationsEnabled'
     ];
     
     const backupData = {};
@@ -4299,6 +4346,28 @@ function saveEditedMessage() {
     editingMessageIndex = null;
 }
 
+function toggleBackgroundNotifications(enabled) {
+    backgroundNotificationsEnabled = enabled;
+    localStorage.setItem('backgroundNotificationsEnabled', String(enabled));
+    if (enabled && Notification.permission !== 'granted') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                showToast('后台通知已开启', 'success');
+            } else {
+                showToast('通知权限被拒绝', 'error');
+                document.getElementById('setting-bg-notifications').checked = false;
+                backgroundNotificationsEnabled = false;
+                localStorage.setItem('backgroundNotificationsEnabled', 'false');
+            }
+        });
+    } else if (enabled) {
+        showToast('后台通知已开启', 'success');
+    } else {
+        showToast('后台通知已关闭', 'info');
+    }
+}
+
+
 // Assign all functions to the window object. This is crucial for onclick handlers in HTML to work when using a module script.
 Object.assign(window, {
     showToast, editHomeText, showScreen, goHome, closeModal, openSettings, saveSettings,
@@ -4322,13 +4391,18 @@ Object.assign(window, {
     saveOfflineModeSettings, requestAIResponse: getAIResponse, continueAIResponse, menuActionChatList, menuActionComment,
     saveEditedMessage, openWbSelection: ()=>{}, backToCharSettings: ()=>{}, selectWorldBook: ()=>{},
     openMemoryModal, saveMemorySettings, hideMomentCommentBar, renderFontPresets, applyGlobalFont,
-    openCharPhone, renderCharPhoneList, showCharWallet
+    openCharPhone, renderCharPhoneList, showCharWallet, toggleBackgroundNotifications
 });
 
 
 document.addEventListener('DOMContentLoaded', () => {
     const phoneShell = document.getElementById('phone-shell');
     if (isFullscreen) phoneShell.classList.add('fullscreen-mode');
+
+    document.getElementById('setting-bg-notifications').checked = backgroundNotificationsEnabled;
+    if (backgroundNotificationsEnabled && Notification.permission !== 'granted') {
+        Notification.requestPermission();
+    }
 
     const homeAvatarImg = document.getElementById('home-avatar-img');
     homeAvatarImg.style.backgroundImage = `url('${savedUserAvatar}')`;
