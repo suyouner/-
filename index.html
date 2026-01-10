@@ -1879,15 +1879,26 @@ function showMsgContextMenu(e, index) {
     const char = contacts.find(c => c.id === currentChatId);
     if (!char || !menu) return;
     const msg = char.history[index];
-    if (!msg) return;
+    if (!msg || msg.type === 'system') { // Don't show menu for system messages
+        menu.style.display = 'none';
+        return;
+    }
 
     const retryBtn = menu.querySelector('[onclick*="retry"]');
     const editBtn = menu.querySelector('[onclick*="edit"]');
     const recallBtn = menu.querySelector('[onclick*="recall"]');
     
-    retryBtn.style.display = msg.sender === 'user' ? 'flex' : 'none';
-    editBtn.style.display = (msg.sender === 'user' && (msg.type === 'text' || !msg.type)) ? 'flex' : 'none';
-    recallBtn.style.display = (msg.sender === 'user' && (Date.now() - msg.timestamp) < 2 * 60 * 1000) ? 'flex' : 'none';
+    const isUserMsg = msg.sender === 'user';
+    const isTextMsg = msg.type === 'text' || !msg.type;
+
+    // User's message menu
+    recallBtn.style.display = isUserMsg && (Date.now() - msg.timestamp) < 2 * 60 * 1000 ? 'flex' : 'none';
+    
+    // AI's message menu
+    retryBtn.style.display = !isUserMsg ? 'flex' : 'none';
+    
+    // Common items
+    editBtn.style.display = isTextMsg ? 'flex' : 'none';
 
     menu.style.display = 'block';
     
@@ -2985,11 +2996,7 @@ async function getAIResponse(isContinuation = false) {
     } catch (e) {
         console.error("API Error:", e);
         showToast(`AI回复出错: ${e.message}`, 'error');
-        const char = contacts.find((c) => c.id === currentChatId); // Refetch char
-        if (char) {
-            char.history.push({ content: `对方暂时无法回复，请检查API设置 (${e.message})`, type: 'system', timestamp: Date.now() });
-            renderChat();
-        }
+        // Do not add system message to chat history per user request
     } finally {
         hideTypingIndicator();
     }
@@ -3174,23 +3181,13 @@ function menuAction(action) {
 
     switch(action) {
         case 'retry':
+            // "Retry" is for AI messages. It deletes the AI's message and regenerates.
             const msgToRetry = char.history[selectedMsgIndex];
-            if (msgToRetry && msgToRetry.sender === 'user') {
-                const contentToRetry = msgToRetry.content;
-                char.history.splice(selectedMsgIndex, 1);
-                
-                const newMsg = {
-                    sender: 'user',
-                    content: contentToRetry,
-                    timestamp: Date.now(),
-                    type: msgToRetry.type,
-                };
-
-                char.history.push(newMsg);
+            if (msgToRetry && msgToRetry.sender !== 'user') {
+                char.history.splice(selectedMsgIndex, 1); // Remove the AI message
                 localStorage.setItem('contacts', JSON.stringify(contacts));
                 renderChat();
-                renderContacts();
-                getAIResponse();
+                getAIResponse(); // Regenerate response based on previous history
             }
             break;
         case 'reply':
@@ -3210,7 +3207,8 @@ function menuAction(action) {
              renderChat();
             break;
         case 'edit':
-             if (msg.sender === 'user' && (msg.type === 'text' || !msg.type)) {
+             // Allow editing both user and AI messages
+             if (msg && (msg.type === 'text' || !msg.type)) {
                 editingMessageIndex = selectedMsgIndex;
                 document.getElementById('edit-message-input').value = msg.content;
                 document.getElementById('modal-edit-message').style.display = 'flex';
