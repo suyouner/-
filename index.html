@@ -20,18 +20,22 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; user-select: none; }
   
+  html {
+    height: 100%;
+    width: 100%;
+    background-color: #e0e0e0;
+    overscroll-behavior-y: contain;
+  }
+
   body { 
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-    background-color: #e0e0e0; 
-    height: 100vh; 
-    height: 100dvh; 
-    width: 100vw; 
+    height: 100%; 
+    width: 100%; 
     display: flex; 
     justify-content: center; 
     align-items: center; 
     overflow: hidden; 
     margin: 0;
-    padding-bottom: 40px; 
   }
 
   /* --- 手机外壳 --- */
@@ -1888,18 +1892,11 @@ function updateChatTitleIndicator() {
   const ind = document.getElementById('chat-title');
   if (!ind) return;
   
-  // Do not update if it's currently showing "Typing..."
   if (ind.dataset.originalTitle) return;
 
   let icons = '';
-  if (!char.isGroup) {
-    if (char.offlineMode && char.offlineMode.enabled) {
-      icons += ' <span class="offline-indicator">线下</span>';
-    }
-    // Per user request, hide the globe icon if real weather sync is active.
-    if (char.syncReality && !char.useRealWeather) {
-      icons += ' <i class="fas fa-globe-asia" style="font-size:12px;color:#576b95;"></i>';
-    }
+  if (!char.isGroup && char.offlineMode && char.offlineMode.enabled) {
+    icons += ' <span class="offline-indicator">线下</span>';
   }
   ind.innerHTML = `${char.name}${icons}`;
 }
@@ -2583,6 +2580,7 @@ function renderContacts() {
         
         const item = document.createElement('div');
         item.className = 'contact-item' + (c.isPinned ? ' pinned' : '');
+        item.dataset.charId = c.id;
         item.onclick = () => openChat(c.id);
         item.innerHTML = `
             <div class="contact-avatar" style="background-image: url('${c.avatar}')"></div>
@@ -2707,7 +2705,10 @@ async function sendAiTextAsSentences(sentences, char, speakerId, speakerName) {
         if (!char.isGroup) textMsg.sender = speakerId;
         char.history.push(textMsg);
         
-        renderChat(); // Update UI for this message
+        const chatScreenIsActive = document.getElementById('screen-chat').classList.contains('active');
+        if (chatScreenIsActive && currentChatId === char.id) {
+            renderChat(); // Update UI for this message
+        }
         
         if (i < sentences.length - 1) { // Don't delay after the last message
             const delay = 500 + Math.random() * 700;
@@ -2892,24 +2893,6 @@ async function getAIResponse(isContinuation = false) {
                      return;
                 }
             }
-
-            if (messageContent) { // Ensure there is something to notify about
-                if (backgroundNotificationsEnabled && Notification.permission === 'granted' && document.hidden) {
-                    const notificationBody = messageContent.split('\n')[0].replace(/\[.*?\]\s*/, '').trim(); // Clean up actions for notification
-                    if (notificationBody) { // Only show notification if there's actual text
-                        const notification = new Notification(speakerName, {
-                            body: notificationBody,
-                            icon: speakerChar.avatar,
-                            tag: `chat_${char.id}`
-                        });
-                        notification.onclick = () => {
-                            window.focus();
-                            openChat(char.id); 
-                            notification.close();
-                        };
-                    }
-                }
-            }
             
             const transferActionMatch = messageContent.match(/^\[(ACCEPT|RETURN)\]\s*/);
             const transferMatch = messageContent.match(/^\[TRANSFER:([\d.]+)\]\s*/);
@@ -3015,11 +2998,28 @@ async function getAIResponse(isContinuation = false) {
                     }
                 }
             }
+
+            const chatScreenIsActive = document.getElementById('screen-chat').classList.contains('active');
+            
+            if (!chatScreenIsActive || currentChatId !== char.id) {
+                char.unreadCount = (char.unreadCount || 0) + 1;
+                lastNotificationCharId = char.id;
+                
+                const notificationBody = responseText.trim().split('\n')[0].replace(/\[.*?\]\s*/, '').trim();
+                
+                if (notificationBody) {
+                    showNotification(speakerName, notificationBody, speakerChar.avatar);
+                }
+            }
             
             localStorage.setItem('contacts', JSON.stringify(contacts));
-            if (!didRenderSequentially) {
-                renderChat();
+
+            if (chatScreenIsActive && currentChatId === char.id) {
+                if (!didRenderSequentially) {
+                    renderChat();
+                }
             }
+            
             renderContacts();
 
         } else {
@@ -3028,7 +3028,6 @@ async function getAIResponse(isContinuation = false) {
     } catch (e) {
         console.error("API Error:", e);
         showToast(`AI回复出错: ${e.message}`, 'error');
-        // Do not add system message to chat history per user request
     } finally {
         hideTypingIndicator();
     }
@@ -3411,7 +3410,6 @@ function postUserMoment() {
     localStorage.setItem('moments', JSON.stringify(moments));
     renderMoments();
     closeModal('modal-post-moment');
-    showToast('发表成功', 'success');
     
     // 添加：触发AI好友评论
     setTimeout(() => {
@@ -3541,7 +3539,6 @@ function sendMomentComment() {
     renderMoments();
     hideMomentCommentBar(); // Reset and hide the comment bar
     document.getElementById('moment-comment-input').value = '';
-    showToast('评论成功', 'success');
 
     setTimeout(() => triggerAIComments(moment, newComment), 2000 + Math.random() * 3000);
 };
@@ -3686,7 +3683,6 @@ function saveOfflineModeSettings() {
     localStorage.setItem('contacts', JSON.stringify(contacts));
     closeModal('modal-offline-settings');
     updateChatTitleIndicator();
-    showToast('线下模式已更新', 'success');
 };
 
 function sendTransfer() {
@@ -4068,7 +4064,6 @@ function confirmTransfer() {
         
         updateMeTab();
         closeModal('modal-transfer');
-        showToast('转账成功', 'success');
     };
 
     if (walletPassword) {
@@ -4439,290 +4434,240 @@ Object.assign(window, {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    const phoneShell = document.getElementById('phone-shell');
-    if (isFullscreen) phoneShell.classList.add('fullscreen-mode');
-
-    document.getElementById('setting-bg-notifications').checked = backgroundNotificationsEnabled;
-    if (backgroundNotificationsEnabled && Notification.permission !== 'granted') {
-        Notification.requestPermission();
-    }
-
-    const homeAvatarImg = document.getElementById('home-avatar-img');
-    homeAvatarImg.style.backgroundImage = `url('${savedUserAvatar}')`;
+    // Initial UI setup
+    document.getElementById('home-avatar-img').style.backgroundImage = `url('${savedUserAvatar}')`;
     document.getElementById('home-user-name').innerText = savedUserName;
     document.getElementById('home-user-bio').innerText = savedUserBio;
 
-    // Mic button long press for continue
-    const micBtn = document.getElementById('mic-btn');
-    let micPressTimer = null;
-    
-    const startPress = (e) => {
-      e.preventDefault();
-      micPressTimer = window.setTimeout(() => {
-        // Long press action: continue response
-        const input = document.getElementById('msg-input');
-        if (!input.value.trim()) { // Only continue if input is empty
-            continueAIResponse();
-        }
-        micPressTimer = null; 
-      }, 500); 
-    };
-
-    const endPress = () => {
-       if (micPressTimer) {
-        // Short press action: normal response
-        clearTimeout(micPressTimer);
-        micPressTimer = null;
-        getAIResponse(); 
-      }
-    };
-    
-    micBtn.addEventListener('touchstart', startPress);
-    micBtn.addEventListener('touchend', endPress);
-    micBtn.addEventListener('mousedown', startPress);
-    micBtn.addEventListener('mouseup', endPress);
-    micBtn.addEventListener('mouseleave', () => {
-      if(micPressTimer) clearTimeout(micPressTimer);
-    });
-    
-    document.addEventListener('click', (e) => {
-        const target = e.target;
-        const mMenu = document.getElementById('moments-menu');
-        const aMenu = document.getElementById('add-menu');
-        const cMenu = document.getElementById('comment-context-menu');
-        const msgMenu = document.getElementById('msg-context-menu');
-        const commentBar = document.getElementById('moment-comment-bar');
-        
-        if (mMenu && !mMenu.contains(target) && !(target.closest('#wx-cam-btn'))) { mMenu.style.display = 'none'; }
-        if (aMenu && !aMenu.contains(target) && !(target.closest('#wx-add-btn'))) { aMenu.style.display = 'none'; }
-        if (cMenu && !cMenu.contains(target)) { cMenu.style.display = 'none'; }
-        if (msgMenu && !msgMenu.contains(target) && !target.closest('.message, .msg-img, .msg-red-packet, .msg-transfer')) {
-            msgMenu.style.display = 'none';
-        }
-
-        // Logic to hide the moment comment bar
-        if (commentBar && commentBar.style.display === 'flex') {
-            const isClickOnCommentTrigger = target.closest('.m-action-item, .m-comment-item');
-            const isClickInsideBar = commentBar.contains(target);
-
-            if (!isClickOnCommentTrigger && !isClickInsideBar) {
-                hideMomentCommentBar();
-            }
-        }
-    });
-    
-    document.getElementById('avatar-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const compressed = await compressImage(event.target.result);
-                savedUserAvatar = compressed;
-                localStorage.setItem('userAvatar', savedUserAvatar);
-                document.getElementById('home-avatar-img').style.backgroundImage = `url('${savedUserAvatar}')`;
-                updateMeTab();
-                updateMomentsHeader();
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-
-    document.getElementById('char-avatar-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const compressed = await compressImage(event.target.result);
-                document.getElementById('setting-avatar-preview').src = compressed;
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-    
-    document.getElementById('new-char-avatar-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const compressed = await compressImage(event.target.result);
-                tempNewCharAvatar = compressed;
-                const preview = document.getElementById('new-char-avatar-preview');
-                preview.style.backgroundImage = `url('${tempNewCharAvatar}')`;
-                preview.innerHTML = '';
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-    
-     document.getElementById('char-self-avatar-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                 const compressed = await compressImage(event.target.result);
-                document.getElementById('setting-self-avatar-preview').src = compressed;
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-
-    document.getElementById('img-send-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                 const compressed = await compressImage(event.target.result);
-                sendImageMessageOnly(compressed);
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-    
-    document.getElementById('moment-img-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const compressed = await compressImage(event.target.result);
-                tempMomentImg = compressed;
-                document.getElementById('moment-img-status').innerText = "图片已选择";
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-    
-    document.getElementById('cover-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const compressed = await compressImage(event.target.result);
-                savedUserCover = compressed;
-                localStorage.setItem('userCover', savedUserCover);
-                updateMomentsHeader();
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-
-    document.getElementById('wallpaper-upload').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-             const compressed = await compressImage(event.target.result, 0.8, 1080);
-             desktopWallpaper = compressed;
-             localStorage.setItem('desktopWallpaper', desktopWallpaper);
-             applyDesktopWallpaper();
-             updateWallpaperPreview();
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-    
-    document.getElementById('chat-bg-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const compressed = await compressImage(event.target.result, 0.8, 1080);
-                chatBackgroundImage = compressed;
-                localStorage.setItem('chatBackgroundImage', chatBackgroundImage);
-                applyChatBackground();
-                updateChatBgPreview();
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-
-    document.getElementById('custom-icon-upload').addEventListener('change', (e) => {
-        if (!currentEditingIcon) return;
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const compressed = await compressImage(event.target.result, 0.7, 120);
-                customAppIcons[currentEditingIcon] = compressed;
-                localStorage.setItem('customAppIcons', JSON.stringify(customAppIcons));
-                renderCustomIconEditor();
-                applyAppIconStyle();
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-    
-    document.getElementById('emoji-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file && currentEmojiGroup !== '全部') {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const compressed = await compressImage(event.target.result, 0.7, 120);
-                customEmojis.push({ src: compressed, group: currentEmojiGroup });
-                localStorage.setItem('customEmojis', JSON.stringify(customEmojis));
-                renderEmojiPanel();
-            };
-            reader.readAsDataURL(file);
-        } else if (currentEmojiGroup === '全部'){
-           showToast('请先选择一个分组', 'info');
-        }
-    });
-
-    document.getElementById('backup-upload').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const backupData = JSON.parse(event.target.result);
-            for (const key in backupData) {
-              if (backupData.hasOwnProperty(key)) {
-                const value = typeof backupData[key] === 'object' ? JSON.stringify(backupData[key]) : backupData[key];
-                localStorage.setItem(key, value);
-              }
-            }
-            showToast('数据导入成功，正在刷新...', 'success');
-            setTimeout(() => window.location.reload(), 1500);
-          } catch (err) {
-            showToast('导入失败，文件格式错误', 'error');
-          }
-        };
-        reader.readAsText(file);
-      }
-    });
-
-    applyChatBackground();
+    // Apply initial theme settings
+    if (isFullscreen) {
+        document.getElementById('phone-shell').classList.add('fullscreen-mode');
+    }
     applyDesktopWallpaper();
+    applyChatBackground();
     applyAppIconStyle();
-    
     applyGlobalFont();
     
-    document.addEventListener('contextmenu', e => {
-      const target = e.target;
-      if (target.closest('.contact-item')) {
+    // Set up chat list long-press
+    const contactContainer = document.getElementById('contact-container');
+    let longPressTimer;
+    const startLongPress = (e, isTouch) => {
+        const item = e.target.closest('.contact-item');
+        if (item) {
+            longPressTimer = setTimeout(() => {
+                const charId = item.dataset.charId;
+                const char = contacts.find(c => String(c.id) === charId);
+                if (char) {
+                    selectedChatListId = char.id;
+                    const menu = document.getElementById('chat-list-context-menu');
+                    const pinOption = menu.querySelector('[onclick*="pin_top"]');
+                    pinOption.innerText = char.isPinned ? '取消置顶' : '置顶';
+                    menu.style.display = 'block';
+                    const clientX = isTouch ? e.touches[0].pageX : e.pageX;
+                    const clientY = isTouch ? e.touches[0].pageY : e.pageY;
+                    menu.style.left = `${clientX}px`;
+                    menu.style.top = `${clientY}px`;
+                }
+            }, 700);
+        }
+    };
+    contactContainer.addEventListener('touchstart', (e) => startLongPress(e, true));
+    contactContainer.addEventListener('touchend', () => clearTimeout(longPressTimer));
+    contactContainer.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+    contactContainer.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        const contactItem = target.closest('.contact-item');
-        const contactId = contactItem.getAttribute('onclick').match(/'([^']*)'/)[1];
-        selectedChatListId = contactId;
-        const menu = document.getElementById('chat-list-context-menu');
-        menu.style.display = 'block';
-        menu.style.left = `${e.pageX}px`;
-        menu.style.top = `${e.pageY}px`;
-      } else {
-        const menu = document.getElementById('chat-list-context-menu');
-        if(menu) menu.style.display = 'none';
-      }
-    });
-    
-    document.addEventListener('click', e => {
-      const menu = document.getElementById('chat-list-context-menu');
-      if (menu && !e.target.closest('.contact-item')) {
-        menu.style.display = 'none';
-      }
+        startLongPress(e, false);
     });
 
-    // 启动自动朋友圈生成
+    // Microphone button long press for continuation
+    const micBtn = document.getElementById('mic-btn');
+    let micLongPressTimer;
+    micBtn.addEventListener('touchstart', () => {
+        micLongPressTimer = setTimeout(() => {
+            showToast('继续生成...', 'info');
+            continueAIResponse();
+        }, 800);
+    });
+    micBtn.addEventListener('touchend', () => clearTimeout(micLongPressTimer));
+    micBtn.onclick = () => {
+        getAIResponse();
+    };
+
+
+    // Hide menus on outside click
+    document.body.addEventListener('click', (e) => {
+        const isMenuClick = e.target.closest('#msg-context-menu, #add-menu, #moments-menu, #chat-list-context-menu, #comment-context-menu');
+        const isMenuTrigger = e.target.closest('.message, .msg-img, #wx-add-btn, #wx-cam-btn, .contact-item, .m-comment-item');
+        if (!isMenuClick && !isMenuTrigger) {
+            document.getElementById('msg-context-menu').style.display = 'none';
+            document.getElementById('add-menu').style.display = 'none';
+            document.getElementById('moments-menu').style.display = 'none';
+            document.getElementById('chat-list-context-menu').style.display = 'none';
+            document.getElementById('comment-context-menu').style.display = 'none';
+        }
+    });
+
+    // File input handlers
+    document.getElementById('avatar-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        savedUserAvatar = src;
+        localStorage.setItem('userAvatar', savedUserAvatar);
+        document.getElementById('home-avatar-img').style.backgroundImage = `url('${src}')`;
+        updateMeTab();
+        updateMomentsHeader();
+    }));
+    
+    document.getElementById('char-avatar-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        document.getElementById('setting-avatar-preview').src = src;
+    }));
+    
+    document.getElementById('new-char-avatar-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        tempNewCharAvatar = src;
+        const preview = document.getElementById('new-char-avatar-preview');
+        preview.style.backgroundImage = `url('${src}')`;
+        preview.innerHTML = '';
+    }));
+
+    document.getElementById('char-self-avatar-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        document.getElementById('setting-self-avatar-preview').src = src;
+    }));
+
+    document.getElementById('img-send-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        sendImageMessageOnly(src);
+    }));
+
+    document.getElementById('moment-img-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        tempMomentImg = src;
+        document.getElementById('moment-img-status').innerText = '已选择图片';
+    }));
+
+    document.getElementById('cover-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        savedUserCover = src;
+        localStorage.setItem('userCover', savedUserCover);
+        updateMomentsHeader();
+    }));
+
+    document.getElementById('wallpaper-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        desktopWallpaper = src;
+        localStorage.setItem('desktopWallpaper', desktopWallpaper);
+        applyDesktopWallpaper();
+        updateWallpaperPreview();
+    }));
+
+    document.getElementById('chat-bg-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        chatBackgroundImage = src;
+        localStorage.setItem('chatBackgroundImage', chatBackgroundImage);
+        applyChatBackground();
+        updateChatBgPreview();
+    }));
+    
+    document.getElementById('custom-icon-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        if (currentEditingIcon) {
+            customAppIcons[currentEditingIcon] = src;
+            localStorage.setItem('customAppIcons', JSON.stringify(customAppIcons));
+            renderCustomIconEditor();
+            if (appIconStyle === 'custom') {
+                applyAppIconStyle();
+            }
+        }
+    }));
+    
+    document.getElementById('emoji-upload').addEventListener('change', (e) => handleFileUpload(e.target.files[0], (src) => {
+        const group = prompt("将表情添加到哪个分组？", currentEmojiGroup === '全部' ? '默认' : currentEmojiGroup);
+        if (group) {
+            if (!emojiGroups.includes(group)) {
+                emojiGroups.push(group);
+                localStorage.setItem('emojiGroups', JSON.stringify(emojiGroups));
+            }
+            customEmojis.push({ src, group });
+            localStorage.setItem('customEmojis', JSON.stringify(customEmojis));
+            currentEmojiGroup = group;
+            renderEmojiPanel();
+        }
+    }));
+
+    document.getElementById('backup-upload').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (confirm('这将覆盖您当前的所有数据，确定要导入吗？')) {
+                        Object.keys(data).forEach(key => {
+                            const value = typeof data[key] === 'string' ? data[key] : JSON.stringify(data[key]);
+                            localStorage.setItem(key, value);
+                        });
+                        alert('导入成功，页面将刷新。');
+                        location.reload();
+                    }
+                } catch (err) {
+                    alert('导入失败，文件格式错误。');
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        }
+    });
+    
+    // Proactive Chat logic
+    setInterval(async () => {
+        if (!config.key || document.hidden) return; // Don't run if tab is not active or no API key
+        
+        const proactiveChars = contacts.filter(c => c.proactiveChat && !c.isGroup);
+        if (proactiveChars.length === 0) return;
+        
+        // Randomly check if we should send a message (e.g., once every ~15 mins on average)
+        if (Math.random() < 1 / (15 * 60)) { // 1 check per second -> 1/900 chance per second
+            const char = proactiveChars[Math.floor(Math.random() * proactiveChars.length)];
+            const lastMsg = char.history[char.history.length - 1];
+
+            // Only send if it's been a while since the last message
+            if (!lastMsg || (Date.now() - lastMsg.timestamp > 30 * 60 * 1000)) { // 30 mins
+                 try {
+                    const ai = new GoogleGenAI({ apiKey: config.key });
+                    const prompt = `You are ${char.name} (${char.prompt}). You haven't talked to the user in a while. Start a new conversation by sending a short, natural, in-character message. For example, ask a question, share something interesting, or just say hello. Output only the message text.`;
+                    
+                    const response = await ai.models.generateContent({
+                        model: 'gemini-3-flash-preview',
+                        contents: prompt,
+                        generationConfig: { temperature: 0.9 }
+                    });
+                    
+                    const messageText = response.text?.trim();
+                    if (messageText) {
+                        char.history.push({
+                            sender: char.id,
+                            content: messageText,
+                            timestamp: Date.now(),
+                            type: 'text'
+                        });
+                        char.unreadCount = (char.unreadCount || 0) + 1;
+                        localStorage.setItem('contacts', JSON.stringify(contacts));
+                        
+                        // Show notification
+                        lastNotificationCharId = char.id;
+                        showNotification(char.name, messageText, char.avatar);
+
+                        // If user is on the chat list page, update it
+                        if (document.getElementById('screen-wechat').classList.contains('active')) {
+                            renderContacts();
+                        }
+                    }
+                } catch (e) {
+                    console.error("Proactive chat failed:", e);
+                }
+            }
+        }
+    }, 1000); // Check every second
+
+    // Start background auto moment generation
     if (autoMomentEnabled) {
-        setTimeout(startAutoMomentGeneration, 10000); // 10秒后启动
+        startAutoMomentGeneration();
+    }
+    
+    // Check notification permissions on load
+    if (backgroundNotificationsEnabled && Notification.permission !== 'granted') {
+         Notification.requestPermission();
     }
 });
 </script>
