@@ -1,0 +1,22 @@
+{
+  "name": "草莓机",
+  "short_name": "草莓机",
+  "description": "草莓机应用",
+  "start_url": "/-/",
+  "display": "fullscreen",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "scope": "/-/",
+  "icons": [
+    {
+      "src": "/-/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/-/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
