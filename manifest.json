@@ -2,21 +2,21 @@
   "name": "草莓机",
   "short_name": "草莓机",
   "description": "个性化 AI 聊天模拟器",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#f48fb1",
   "background_color": "#fce4ec",
   "icons": [
     {
-      "src": "/icon-128x128.png",
+      "src": "./icon-128x128.png",
       "sizes": "128x128",
       "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "./icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
