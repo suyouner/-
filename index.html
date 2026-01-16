@@ -2,35 +2,34 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<!-- 关键：PWA 相关配置 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <!-- 透明状态栏 -->
+<meta name="apple-mobile-web-app-title" content="草莓机">
+<meta name="theme-color" content="#f48fb1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.json">
+
+<!-- 安卓 Chrome 安装提示 -->
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" type="image/png" href="/icon-128x128.png">
+<link rel="shortcut icon" href="/icon-128x128.png">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>草莓机</title>
-
-<!-- 添加以下PWA代码 -->
-<link rel="manifest" href="/-/manifest.json">
-<link rel="icon" href="/-/icon-192.png">
-<meta name="theme-color" content="#000000">
-
-<!-- iOS Safari PWA支持 -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="草莓机">
-<link rel="apple-touch-icon" href="/-/icon-192.png">
-
-<!-- Service Worker 注册 -->
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/-/sw.js')
-      .then(function(registration) {
-        console.log('Service Worker 注册成功:', registration.scope);
-      })
-      .catch(function(error) {
-        console.log('Service Worker 注册失败:', error);
-      });
-  }
-</script>
-
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
+/* 确保内容延伸到状态栏下方 */
+body {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* 导航栏适配 */
+.nav-bar {
+  padding-top: calc(15px + env(safe-area-inset-top));
+}
+
   /* --- 全局样式 --- */
   :root {
     --bg-gradient: linear-gradient(180deg, #fce4ec 0%, #f8bbd9 100%);
@@ -4696,5 +4695,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
+
+<script>
+// 注册 Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('ServiceWorker 注册成功: ', registration.scope);
+      })
+      .catch(err => {
+        console.log('ServiceWorker 注册失败: ', err);
+      });
+  });
+}
+
+// PWA 安装提示
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  // 防止 Chrome 67 及更早版本自动显示安装提示
+  e.preventDefault();
+  // 储存事件以便稍后触发
+  deferredPrompt = e;
+  
+  // 可选：显示自定义的安装按钮
+  const installButton = document.createElement('button');
+  installButton.innerHTML = '添加到桌面';
+  installButton.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    background: #f48fb1;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    z-index: 10000;
+    font-size: 14px;
+    cursor: pointer;
+  `;
+  installButton.onclick = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('用户接受了安装提示');
+        } else {
+          console.log('用户拒绝了安装提示');
+        }
+        deferredPrompt = null;
+      });
+    }
+  };
+  document.body.appendChild(installButton);
+});
+
+// 监听 PWA 安装完成
+window.addEventListener('appinstalled', (evt) => {
+  console.log('应用已安装到桌面');
+});
+</script>
+</body>
+</html>
 </body>
 </html>
