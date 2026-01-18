@@ -499,6 +499,7 @@ function deleteWB(id) {
 }
 
 function backToWeChat() {
+  document.getElementById('action-panel').classList.remove('show');
   currentChatId = null;
   exitMultiSelectMode();
   renderContacts();
@@ -1255,7 +1256,7 @@ function renderActionPanel() {
     ];
     
     if (char.isGroup) {
-        // Red packet action removed
+        actions.push({ name: '红包', icon: 'fas fa-gift', action: "openGroupRedPacketModal()" });
     } else {
         actions.push({ name: '转账', icon: 'fas fa-exchange-alt', action: "sendTransfer()" });
         actions.push({ name: '线下', icon: 'fas fa-theater-masks', action: "openOfflineModeSettings()" });
@@ -1469,7 +1470,6 @@ async function getAIResponse(isContinuation = false) {
 
         let capabilities = [
             "You can roll a dice by starting your response with '[DICE]'. Example: '[DICE] Let's see!'",
-            "You can send a money transfer to the user (if you have enough balance) by starting your response with '[TRANSFER:amount]'. Example: '[TRANSFER:5.20] Here is some pocket money.'",
             "You can accept a pending transfer from the user by responding with '[ACCEPT]'. You can optionally add text after, like '[ACCEPT] Thanks!'",
             "You can return a pending transfer from the user by responding with '[RETURN]'. You can optionally add text after, like '[RETURN] No need, thanks.'",
             "You can change your avatar by describing a new one. Start your response with '[SET_AVATAR_SEED:description]'. Example: '[SET_AVATAR_SEED:a happy smiling cat]'",
@@ -1477,12 +1477,19 @@ async function getAIResponse(isContinuation = false) {
         ];
 
         if (char.isGroup) {
+            capabilities.push("You can send a group red packet (if you have enough balance). Your response must start *exactly* with '[RED_PACKET:amount:greeting]'. 'amount' is a number (e.g., 88.88). 'greeting' is optional text. Example: '[RED_PACKET:88.88:Happy New Year!]'");
+        } else {
+            capabilities.unshift("You can send a money transfer to the user (if you have enough balance). Your response must start *exactly* with '[TRANSFER:amount]'. 'amount' is a number (e.g., 5.20). Example: '[TRANSFER:5.20] Here is some pocket money.'");
+        }
+
+
+        if (char.isGroup) {
             systemInstructionText += "\n\n这是一个群聊。群成员如下:\n";
             char.members.forEach(memberId => {
                 const member = contacts.find(c => c.id === memberId);
                 if (member) systemInstructionText += `- ${member.name}: ${member.prompt}\n`;
             });
-            systemInstructionText += "\n根据最新的对话内容，选择一个最合适的角色进行回复。你的回复必须以'角色名: '开头，例如 '张三: 你好啊'。This format applies to all capabilities, for example: '张三: [TRANSFER:10] Lunch is on me!'";
+            systemInstructionText += "\n根据最新的对话内容，选择一个最合适的角色进行回复。你的回复必须以'角色名: '开头，例如 '张三: 你好啊'。This format applies to all capabilities, for example: '张三: [RED_PACKET:88.88:Happy New Year!]'";
         } else {
             systemInstructionText += `\n\n${char.prompt}`;
             const wb = worldBooks.find(w => w.id === char.worldBookId);
@@ -1628,7 +1635,8 @@ async function getAIResponse(isContinuation = false) {
             }
             
             const transferActionMatch = messageContent.match(/^\[(ACCEPT|RETURN)\]\s*/);
-            const transferMatch = messageContent.match(/^\[TRANSFER:([\d.]+)\]\s*/);
+            const transferMatch = !char.isGroup ? messageContent.match(/^\[TRANSFER:([\d.]+)\]\s*/) : null;
+            const redPacketMatch = char.isGroup ? messageContent.match(/^\[RED_PACKET:([\d.]+)(?::(.*?))?\]\s*/) : null;
             const avatarMatch = messageContent.match(/^\[SET_AVATAR_SEED:(.+?)\]\s*/);
             const deleteMomentMatch = messageContent.match(/^\[DELETE_MOMENT\]\s*/);
             
@@ -1687,6 +1695,23 @@ async function getAIResponse(isContinuation = false) {
                     char.history.push(newMsg);
                 }
                 messageContent = messageContent.substring(transferMatch[0].length).trim();
+            } else if (redPacketMatch) {
+                const amount = parseFloat(redPacketMatch[1]);
+                const greeting = redPacketMatch[2] || '恭喜发财，大吉大利';
+                if (speakerChar && !isNaN(amount) && amount > 0 && speakerChar.walletBalance >= amount) {
+                    speakerChar.walletBalance -= amount;
+                    const newMsg = {
+                        id: `redpacket_${Date.now()}`,
+                        senderId: speakerId,
+                        senderName: speakerName,
+                        content: greeting,
+                        timestamp: Date.now(),
+                        type: 'red-packet',
+                        amount: amount
+                    };
+                    char.history.push(newMsg);
+                }
+                messageContent = messageContent.substring(redPacketMatch[0].length).trim();
             } else if (avatarMatch) {
                 const seed = avatarMatch[1];
                 if (speakerChar) {
@@ -2476,6 +2501,205 @@ function openPasswordSetModal() {
     }
 };
 
+function confirmTransfer() {
+    const amount = parseFloat(document.getElementById('transfer-amount').value);
+    if (isNaN(amount) || amount <= 0) {
+        showToast('请输入有效金额', 'error');
+        return;
+    }
+    if (amount > walletBalance) {
+        showToast('钱包余额不足', 'error');
+        return;
+    }
+    
+    const execute = () => {
+        walletBalance -= amount;
+        localStorage.setItem('walletBalance', walletBalance.toString());
+        
+        const char = contacts.find(c => c.id === currentChatId);
+        if (char) {
+            const newMsg = {
+                id: `transfer_${Date.now()}`,
+                sender: 'user',
+                content: `向 ${char.name} 转账`,
+                timestamp: Date.now(),
+                type: 'transfer',
+                amount: amount,
+                status: 'pending' // pending, accepted, returned
+            };
+            char.history.push(newMsg);
+            localStorage.setItem('contacts', JSON.stringify(contacts));
+            renderChat();
+            // getAIResponse(); // Removed for manual trigger
+        }
+        
+        updateMeTab();
+        closeModal('modal-transfer');
+    };
+
+    if (walletPassword) {
+        openPasswordModal('请输入支付密码', (password) => {
+            if (password === walletPassword) {
+                execute();
+                return true;
+            } else {
+                showToast('密码错误', 'error');
+                return false;
+            }
+        });
+    } else {
+        execute();
+    }
+};
+
+function openGroupRedPacketModal() {
+    const char = contacts.find(c => c.id === currentChatId);
+    if (!char || !char.isGroup) return;
+    document.getElementById('red-packet-wallet-balance').innerText = walletBalance.toFixed(2);
+    document.getElementById('red-packet-amount').value = '';
+    document.getElementById('red-packet-greeting').value = '';
+    document.getElementById('modal-group-red-packet').style.display = 'flex';
+    document.getElementById('action-panel').classList.remove('show');
+}
+
+function confirmSendGroupRedPacket() {
+    const amount = parseFloat(document.getElementById('red-packet-amount').value);
+    const greeting = document.getElementById('red-packet-greeting').value.trim() || '恭喜发财，大吉大利';
+
+    if (isNaN(amount) || amount <= 0) {
+        showToast('请输入有效金额', 'error');
+        return;
+    }
+    if (amount > walletBalance) {
+        showToast('钱包余额不足', 'error');
+        return;
+    }
+
+    const execute = () => {
+        walletBalance -= amount;
+        localStorage.setItem('walletBalance', walletBalance.toString());
+        
+        const char = contacts.find(c => c.id === currentChatId);
+        if (char) {
+            const newMsg = {
+                id: `redpacket_${Date.now()}`,
+                sender: 'user',
+                content: greeting,
+                timestamp: Date.now(),
+                type: 'red-packet',
+                amount: amount,
+            };
+            char.history.push(newMsg);
+            localStorage.setItem('contacts', JSON.stringify(contacts));
+            renderChat();
+            renderContacts();
+        }
+        
+        updateMeTab();
+        closeModal('modal-group-red-packet');
+    };
+
+    if (walletPassword) {
+        openPasswordModal('请输入支付密码', (password) => {
+            if (password === walletPassword) {
+                execute();
+                return true;
+            } else {
+                showToast('密码错误', 'error');
+                return false;
+            }
+        });
+    } else {
+        execute();
+    }
+}
+
+function openPasswordModal(title, onsuccess) {
+    passwordModalContext.onsuccess = onsuccess;
+    document.getElementById('password-modal-title').innerText = title;
+    currentPasswordAttempt = '';
+    document.querySelectorAll('#password-dots-container div').forEach(dot => dot.classList.remove('filled'));
+    document.getElementById('password-error-msg').innerText = '';
+    document.getElementById('modal-password-input').style.display = 'flex';
+}
+
+function closePasswordModal() {
+     document.getElementById('modal-password-input').style.display = 'none';
+};
+
+function handleNumpadClick(num) {
+    if (currentPasswordAttempt.length < 6) {
+        currentPasswordAttempt += num;
+        updatePasswordDots();
+
+        if (currentPasswordAttempt.length === 6) {
+            processPasswordAttempt();
+        }
+    }
+};
+
+function handleNumpadBackspace() {
+    if (currentPasswordAttempt.length > 0) {
+        currentPasswordAttempt = currentPasswordAttempt.slice(0, -1);
+        updatePasswordDots();
+    }
+};
+
+function updatePasswordDots() {
+    document.querySelectorAll('#password-dots-container div').forEach((dot, index) => {
+        if (index < currentPasswordAttempt.length) {
+            dot.classList.add('filled');
+        } else {
+            dot.classList.remove('filled');
+        }
+    });
+}
+
+function processPasswordAttempt() {
+    const { mode, step } = passwordModalContext;
+
+    if (mode === 'set') {
+        if (step === 1) {
+            passwordModalContext.tempPassword = currentPasswordAttempt;
+            passwordModalContext.step = 2;
+            document.getElementById('password-modal-title').innerText = '请再次输入以确认';
+            currentPasswordAttempt = '';
+            updatePasswordDots();
+        } else { // step 2
+            if (currentPasswordAttempt === passwordModalContext.tempPassword) {
+                if(passwordModalContext.onsuccess) passwordModalContext.onsuccess(currentPasswordAttempt);
+                closePasswordModal();
+            } else {
+                document.getElementById('password-error-msg').innerText = '两次输入的密码不一致';
+                shakePasswordDots();
+                currentPasswordAttempt = '';
+                setTimeout(updatePasswordDots, 500);
+                passwordModalContext.step = 1;
+                document.getElementById('password-modal-title').innerText = '请设置6位支付密码';
+            }
+        }
+    } else { // mode === 'verify'
+        if (passwordModalContext.onsuccess) {
+            const result = passwordModalContext.onsuccess(currentPasswordAttempt);
+            if (result !== false) {
+               closePasswordModal();
+            } else {
+               shakePasswordDots();
+               currentPasswordAttempt = '';
+               setTimeout(updatePasswordDots, 500);
+            }
+        }
+    }
+}
+
+function shakePasswordDots() {
+    const dots = document.getElementById('password-dots-container');
+    if(dots) {
+        dots.classList.add('shake');
+        setTimeout(() => dots.classList.remove('shake'), 500);
+    }
+}
+
 function showGroupManagerModal() {
     const addrGroups = ['未分组', ...new Set(contacts.filter(c => c.group).map(c => c.group))];
     const groupSelect = document.getElementById('target-addr-group');
@@ -2763,143 +2987,6 @@ function startAutoMomentGeneration() {
     }, 60 * 60 * 1000); // 每小时检查一次
 }
 
-function confirmTransfer() {
-    const amount = parseFloat(document.getElementById('transfer-amount').value);
-    if (isNaN(amount) || amount <= 0) {
-        showToast('请输入有效金额', 'error');
-        return;
-    }
-    if (amount > walletBalance) {
-        showToast('钱包余额不足', 'error');
-        return;
-    }
-    
-    const execute = () => {
-        walletBalance -= amount;
-        localStorage.setItem('walletBalance', walletBalance.toString());
-        
-        const char = contacts.find(c => c.id === currentChatId);
-        if (char) {
-            const newMsg = {
-                id: `transfer_${Date.now()}`,
-                sender: 'user',
-                content: `向 ${char.name} 转账`,
-                timestamp: Date.now(),
-                type: 'transfer',
-                amount: amount,
-                status: 'pending' // pending, accepted, returned
-            };
-            char.history.push(newMsg);
-            localStorage.setItem('contacts', JSON.stringify(contacts));
-            renderChat();
-            // getAIResponse(); // Removed for manual trigger
-        }
-        
-        updateMeTab();
-        closeModal('modal-transfer');
-    };
-
-    if (walletPassword) {
-        openPasswordModal('请输入支付密码', (password) => {
-            if (password === walletPassword) {
-                execute();
-                return true;
-            } else {
-                showToast('密码错误', 'error');
-                return false;
-            }
-        });
-    } else {
-        execute();
-    }
-};
-
-function openPasswordModal(title, onsuccess) {
-    passwordModalContext.onsuccess = onsuccess;
-    document.getElementById('password-modal-title').innerText = title;
-    currentPasswordAttempt = '';
-    document.querySelectorAll('#password-dots-container div').forEach(dot => dot.classList.remove('filled'));
-    document.getElementById('password-error-msg').innerText = '';
-    document.getElementById('modal-password-input').style.display = 'flex';
-}
-
-function closePasswordModal() {
-     document.getElementById('modal-password-input').style.display = 'none';
-};
-
-function handleNumpadClick(num) {
-    if (currentPasswordAttempt.length < 6) {
-        currentPasswordAttempt += num;
-        updatePasswordDots();
-
-        if (currentPasswordAttempt.length === 6) {
-            processPasswordAttempt();
-        }
-    }
-};
-
-function handleNumpadBackspace() {
-    if (currentPasswordAttempt.length > 0) {
-        currentPasswordAttempt = currentPasswordAttempt.slice(0, -1);
-        updatePasswordDots();
-    }
-};
-
-function updatePasswordDots() {
-    document.querySelectorAll('#password-dots-container div').forEach((dot, index) => {
-        if (index < currentPasswordAttempt.length) {
-            dot.classList.add('filled');
-        } else {
-            dot.classList.remove('filled');
-        }
-    });
-}
-
-function processPasswordAttempt() {
-    const { mode, step } = passwordModalContext;
-
-    if (mode === 'set') {
-        if (step === 1) {
-            passwordModalContext.tempPassword = currentPasswordAttempt;
-            passwordModalContext.step = 2;
-            document.getElementById('password-modal-title').innerText = '请再次输入以确认';
-            currentPasswordAttempt = '';
-            updatePasswordDots();
-        } else { // step 2
-            if (currentPasswordAttempt === passwordModalContext.tempPassword) {
-                if(passwordModalContext.onsuccess) passwordModalContext.onsuccess(currentPasswordAttempt);
-                closePasswordModal();
-            } else {
-                document.getElementById('password-error-msg').innerText = '两次输入的密码不一致';
-                shakePasswordDots();
-                currentPasswordAttempt = '';
-                setTimeout(updatePasswordDots, 500);
-                passwordModalContext.step = 1;
-                document.getElementById('password-modal-title').innerText = '请设置6位支付密码';
-            }
-        }
-    } else { // mode === 'verify'
-        if (passwordModalContext.onsuccess) {
-            const result = passwordModalContext.onsuccess(currentPasswordAttempt);
-            if (result !== false) {
-               closePasswordModal();
-            } else {
-               shakePasswordDots();
-               currentPasswordAttempt = '';
-               setTimeout(updatePasswordDots, 500);
-            }
-        }
-    }
-}
-
-function shakePasswordDots() {
-    const dots = document.getElementById('password-dots-container');
-    if(dots) {
-        dots.classList.add('shake');
-        setTimeout(() => dots.classList.remove('shake'), 500);
-    }
-}
-
 function toggleAutoMoment(enabled) {
     const container = document.getElementById('auto-moment-char-list-container');
     if (container) {
@@ -3104,7 +3191,7 @@ Object.assign(window, {
     acceptTransfer, menuAction, cancelReply, openChat, showLightbox, hideLightbox,
     toggleMomentsMenu, toggleAddMenu, showPostMomentModal, postUserMoment, deleteMoment,
     likeMoment, sendMomentComment, commentMoment, showWalletModal, openTopUpModal,
-    confirmTopUp, openPasswordSetModal,
+    confirmTopUp, openPasswordSetModal, openGroupRedPacketModal, confirmSendGroupRedPacket,
     closePasswordModal, handleNumpadClick, handleNumpadBackspace, deleteSelectedMessages,
     showGroupManagerModal, showAddContactModal, addNewChar, showCreateGroupModal,
     createNewGroupChat, addNewAddrGroup, saveAddrGroupMove, openCharDetailSettings,
