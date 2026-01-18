@@ -1255,7 +1255,7 @@ function renderActionPanel() {
     ];
     
     if (char.isGroup) {
-        actions.push({ name: '群红包', icon: 'fas fa-gift', action: "sendGroupRedPacket()" });
+        // Red packet action removed
     } else {
         actions.push({ name: '转账', icon: 'fas fa-exchange-alt', action: "sendTransfer()" });
         actions.push({ name: '线下', icon: 'fas fa-theater-masks', action: "openOfflineModeSettings()" });
@@ -2956,66 +2956,6 @@ function checkWeatherLocation(city) {
     );
 };
 
-function sendGroupRedPacket() {
-    document.getElementById('red-packet-amount').value = '';
-    document.getElementById('red-packet-greeting').value = '';
-    document.getElementById('red-packet-wallet-balance').innerText = walletBalance.toFixed(2);
-    document.getElementById('modal-red-packet').style.display = 'flex';
-};
-
-function confirmSendGroupRedPacket() {
-    const amount = parseFloat(document.getElementById('red-packet-amount').value);
-    const greeting = document.getElementById('red-packet-greeting').value || '恭喜发财，大吉大利！';
-    
-    if (isNaN(amount) || amount <= 0) {
-        showToast('请输入有效金额', 'error');
-        return;
-    }
-    if (amount > walletBalance) {
-        showToast('钱包余额不足', 'error');
-        return;
-    }
-
-    const execute = () => {
-        walletBalance -= amount;
-        localStorage.setItem('walletBalance', walletBalance.toString());
-        
-        const char = contacts.find(c => c.id === currentChatId);
-        if (char) {
-            const newMsg = {
-                id: `redpacket_${Date.now()}`,
-                sender: 'user',
-                content: greeting,
-                timestamp: Date.now(),
-                type: 'red-packet',
-                amount: amount,
-            };
-            char.history.push(newMsg);
-            localStorage.setItem('contacts', JSON.stringify(contacts));
-            renderChat();
-            // getAIResponse(); // Removed for manual trigger
-        }
-        
-        updateMeTab();
-        closeModal('modal-red-packet');
-        showToast('红包已发送', 'success');
-    };
-
-    if (walletPassword) {
-        openPasswordModal('请输入支付密码', (password) => {
-            if (password === walletPassword) {
-                execute();
-                return true;
-            } else {
-                showToast('密码错误', 'error');
-                return false;
-            }
-        });
-    } else {
-        execute();
-    }
-};
-
 function exportBackup() {
     const keysToBackup = [
         'userAvatar', 'userName', 'userBio', 'userPersona', 'userCover',
@@ -3164,7 +3104,7 @@ Object.assign(window, {
     acceptTransfer, menuAction, cancelReply, openChat, showLightbox, hideLightbox,
     toggleMomentsMenu, toggleAddMenu, showPostMomentModal, postUserMoment, deleteMoment,
     likeMoment, sendMomentComment, commentMoment, showWalletModal, openTopUpModal,
-    confirmTopUp, openPasswordSetModal, sendGroupRedPacket, confirmSendGroupRedPacket,
+    confirmTopUp, openPasswordSetModal,
     closePasswordModal, handleNumpadClick, handleNumpadBackspace, deleteSelectedMessages,
     showGroupManagerModal, showAddContactModal, addNewChar, showCreateGroupModal,
     createNewGroupChat, addNewAddrGroup, saveAddrGroupMove, openCharDetailSettings,

@@ -1157,23 +1157,6 @@ body {
     </div>
   </div>
 
-  <div id="modal-red-packet" class="modal">
-    <div class="modal-content">
-        <h3>发群红包</h3>
-        <div style="display:flex; align-items:center; margin: 15px 0;">
-            <label style="width: 80px;">总金额</label>
-            <input type="number" id="red-packet-amount" class="form-input" placeholder="0.00" style="flex:1; text-align:right; border:none; border-bottom:1px solid #eee;">
-            <span style="margin-left:5px;">元</span>
-        </div>
-        <input type="text" id="red-packet-greeting" class="form-input" placeholder="恭喜发财，大吉大利！" style="border:1px solid #eee; border-radius:4px; padding:10px; margin-bottom:15px;">
-        <div style="text-align: center; color: #999; font-size: 14px; margin-bottom: 15px;">钱包余额: ¥<span id="red-packet-wallet-balance">0.00</span></div>
-        <div class="modal-button-group">
-            <button class="btn-secondary" onclick="closeModal('modal-red-packet')">取消</button>
-            <button class="btn-primary" style="background: #e64340;" onclick="confirmSendGroupRedPacket()">塞钱进红包</button>
-        </div>
-    </div>
-  </div>
-
   <div id="modal-password-input" class="modal">
     <div class="password-modal-content">
         <i class="fas fa-times password-close-btn" onclick="closePasswordModal()"></i>
